@@ -7,4 +7,4 @@ The import dialog is accessible by right clicking on a scene in the sidebar.
 
 Open your Dungeon Draft map file in any text editor and paste the contents into the dialog.
 
-Manifest:
+Manifest: `https://raw.githubusercontent.com/moo-man/FVTT-DD-Import/master/module.json`
