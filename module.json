@@ -1,0 +1,11 @@
+{
+  "name": "dd-import",
+  "title": "DungeonDraft Importer",
+  "description": "Imports walls from Dungeon Draft map files",
+  "version": 0.1,
+  "author": "Moo Man",
+  "scripts": ["./ddimport.js"],
+  "styles": ["./styles.css"],
+  "packs": [],
+  "minimumCoreVersion": "0.4.4"
+}
