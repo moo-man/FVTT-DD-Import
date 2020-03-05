@@ -1,7 +1,7 @@
 # FVTT-DD-Importer
 Allows Importing DungeonDraft map files into FoundryVTT
 
-**Version 0.1**: Only Imports Walls, lights, and sometimes doors
+**Version 0.2**: Imports Walls, Doors, and Lights. No cave walls yet.
 
 The import dialog is accessible by right clicking on a scene in the sidebar.
 
