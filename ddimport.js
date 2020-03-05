@@ -42,28 +42,7 @@ static DDImport(scene, file)
 
     scene.update({"walls" : this.GetWalls(file)});
     scene.update({"lights" : this.GetLights(file)});
-
-    // for (let index in file.world.levels[0].portals)
-    // {
-    //     if (!isNaN(index))
-    //     {
-    //     let ddPortals = file.world.levels[0].portals[index]
-    //     let wallSet = []
-    //     let ddPortalString = ddPortals.position;
-    //     let points = ddPortalString.substring(9, ddPortalString.length-2).split(", ").map(a => Number(a))
-    //     let offsetX = canvas.dimensions.paddingX;
-    //     let offsetY = canvas.dimensions.paddingY;
-    //     let ddScale = canvas.grid.size/256
-
-
-    //     let wall = new Wall({
-    //         c : [(points[0]*ddScale)+offsetX, (points[1]*ddScale)+offsetY, (points[0]*ddScale)+offsetX, (points[1]*ddScale)+offsetY+100],
-    //         });
-    //         wall.door = CONST.WALL_DOOR_TYPES.DOOR
-    //     walls.push(wall.data) 
-
-    //     }
-    // }   
+ 
 }
 
 static GetWalls(file)
@@ -102,6 +81,50 @@ static GetWalls(file)
         walls = walls.concat(wallSet);
         }
     }
+
+
+
+    
+    for (let index in file.world.levels[0].portals)
+    {
+        if (!isNaN(index))
+        {
+        let ddPortals = file.world.levels[0].portals[index]
+        let ddPortalString = ddPortals.position;
+        let offsetX = canvas.dimensions.paddingX;
+        let offsetY = canvas.dimensions.paddingY;
+        let ddScale = canvas.grid.size/256
+
+        let point1 = ddPortalString.substring(9, ddPortalString.length-2).split(", ").map(a => Number(a)*ddScale)
+        point1[0]+=offsetX;
+        point1[1]+=offsetY;
+        let point2 = duplicate(point1);
+
+
+        let adjustX = Math.cos(ddPortals.rotation) * canvas.grid.size/2;
+        let adjustY = Math.sin(ddPortals.rotation) * canvas.grid.size/2;
+
+        point1[0]+=adjustX;
+        point1[1]+=adjustY;
+
+        adjustX = Math.cos(ddPortals.rotation+Math.PI) * canvas.grid.size/2;
+        adjustY = Math.sin(ddPortals.rotation+Math.PI) * canvas.grid.size/2;
+
+        point2[0]+=adjustX;
+        point2[1]+=adjustY;
+        
+
+
+        let wall = new Wall({
+            c : [point1[0], point1[1], point2[0], point2[1]],
+            });
+            wall.data.door = CONST.WALL_DOOR_TYPES.DOOR
+            walls.push(wall.data) 
+
+        }
+    }  
+
+
     return walls
 }
 
