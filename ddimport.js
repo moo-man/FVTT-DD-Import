@@ -68,7 +68,7 @@ static GetWalls(file)
                 c : [(points[i]*ddScale)+offsetX, (points[i+1]*ddScale)+offsetY, (points[i+2]*ddScale)+offsetX, (points[i+3]*ddScale)+offsetY],
                 });
             if (doors){
-                wall.door = CONST.WALL_DOOR_TYPES.DOOR
+                wall.data.door = CONST.WALL_DOOR_TYPES.DOOR
 
             }
             
@@ -150,10 +150,11 @@ static GetLights(file)
             dim: ddLight.range,
             bright: ddLight.range/2,
             angle: 360,
-            tintColor: "#FF0000",
+            tintColor: "#" + ddLight.color.substring(2),
             tintAlpha: 0.05
         })
         lights.push(light.data);
+        console.log(light.data.tintColor);
         }
     }
     return lights;
