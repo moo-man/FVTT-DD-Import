@@ -108,7 +108,7 @@ class DDImporter {
       let currentwalls = [];
       for(let i = 0; i < points.length-3; i+=2)
       {
-        allwalls.push([[points[i], points[i+1]], [points[i+2], points[i+3]]])
+        currentwalls.push([[points[i], points[i+1]], [points[i+2], points[i+3]]])
       }
       for (let portal of ddWalls.portals){
         let portalCenterPoint = portal.position.substring(8, portal.position.length-2).split(", ").map(a => Number(a))
@@ -118,7 +118,7 @@ class DDImporter {
         alldoors.push([portalPoint1, portalPoint2])
         let allwalls_new = []
         for (let lineindex = 0; lineindex < currentwalls.length; lineindex+=1){
-          let line = acurrentwallsllwalls[lineindex]
+          let line = currentwalls[lineindex]
           if (this.pointIsOnLine(portalCenterPoint,line)){
             let endpoint1 = this.getNearerPoint(line[0], [portalPoint1, portalPoint2])
             let endpoint2 = this.getNearerPoint(line[1], [portalPoint1, portalPoint2])
