@@ -3,14 +3,7 @@
   "title": "DungeonDraft Importer",
   "description": "Imports scene elements from Dungeon Draft map files",
   "version": 0.4,
-  "authors": [
-    {
-      "name": "Moo Man"
-    },
-    {
-      "name": "m42e"
-    }
-  ],
+  "author": "Moo Man, m42e",
   "scripts": ["./ddimport.js"],
   "styles": ["./styles.css"],
   "packs": [],
