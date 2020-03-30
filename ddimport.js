@@ -105,9 +105,10 @@ class DDImporter {
       if (ddWalls.loop){
         points = points.concat(points.slice(0,2))
       }
+      let currentwalls = [];
       for(let i = 0; i < points.length-3; i+=2)
       {
-        allwalls.push([[points[i], points[i+1]], [points[i+2], points[i+3]]])
+        currentwalls.push([[points[i], points[i+1]], [points[i+2], points[i+3]]])
       }
       for (let portal of ddWalls.portals){
         let portalCenterPoint = portal.position.substring(8, portal.position.length-2).split(", ").map(a => Number(a))
@@ -116,8 +117,8 @@ class DDImporter {
         let portalPoint2 = [portalCenterPoint[0] - portal.radius*portalDirection[0], portalCenterPoint[1] - portal.radius*portalDirection[1]] ;
         alldoors.push([portalPoint1, portalPoint2])
         let allwalls_new = []
-        for (let lineindex = 0; lineindex < allwalls.length; lineindex+=1){
-          let line = allwalls[lineindex]
+        for (let lineindex = 0; lineindex < currentwalls.length; lineindex+=1){
+          let line = currentwalls[lineindex]
           if (this.pointIsOnLine(portalCenterPoint,line)){
             let endpoint1 = this.getNearerPoint(line[0], [portalPoint1, portalPoint2])
             let endpoint2 = this.getNearerPoint(line[1], [portalPoint1, portalPoint2])
@@ -132,8 +133,9 @@ class DDImporter {
             allwalls_new.push(line)
           }
         }
-        allwalls = allwalls_new
+        currentwalls = allwalls_new
       }
+      allwalls = allwalls.concat(currentwalls)
     }
 
     for (let w of allwalls){
@@ -173,8 +175,8 @@ class DDImporter {
     var slopenom = (line[0][1] - line[1][1])
     if (slopedenom == 0){
       if (point[0] == line[0][0]){
-        if ( (point[1] < line[1][1] && point[1] > line[0][1]) ||
-          (point[1] > line[1][1] && point[1] < line[0][1])){
+        if ( (point[1] <= line[1][1] && point[1] >= line[0][1]) ||
+          (point[1] >= line[1][1] && point[1] <= line[0][1])){
           return true
         }
       }
@@ -183,7 +185,16 @@ class DDImporter {
     var slope = slopenom/slopedenom
     var intercept = line[1][1] - slope * line[1][0]
 
-    return (point[1] == (slope * point[0] + intercept))
+    let online = (point[1] == (slope * point[0] + intercept))
+    if (!online) return false
+    if (( (point[0] <= line[1][0] && point[0] >= line[0][0]) ||
+      (point[0] >= line[1][0] && point[0] <= line[0][0])) && 
+      ( (point[1] <= line[1][1] && point[1] >= line[0][1]) ||
+        (point[1] >= line[1][1] && point[1] <= line[0][1])))
+    {
+      return true
+    }
+    return false
   }
 
   static pointsDistance(point1, point2){
