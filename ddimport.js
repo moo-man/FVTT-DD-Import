@@ -8,11 +8,11 @@ Hooks.on("renderSidebarTab", async (app, html) => {
       new Dialog({
         title : "DungeonDraft Import",
         content : 
-        `
-        <div class="import-options">Scene Name <input type = 'text' name = "sceneName"/></div>
-        <div class="import-options">Path <input type = 'text' name = "path" value="${path}"/></div>
-        <div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity<input type="range" min="1" max="6" value: "3" name="fidelity"></div>
-        <div class="import-options"><input class="file-picker" type = 'file' accept = ".dd2vtt"/></div>
+        `</div>
+         <div class="form-group import"><div class="import-options">Scene Name</div><input type = 'text' name = "sceneName"/></div>
+         <div class="form-group import"><div class="import-options">Path</div><input type = 'text' name = "path" value="${path}"/></div>
+         <div class="form-group import"><div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</div><input type="range" min="1" max="6" value: "3" name="fidelity"></div>
+         <div class="form-group import"><div class="import-options">Upload</div><input class="file-picker" type = 'file' accept = ".dd2vtt"/></div>
         `,
         buttons :{
           import : {
