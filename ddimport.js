@@ -1,19 +1,29 @@
-
 Hooks.on("renderSidebarTab", async (app, html) => {
   if (app.options.id == "scenes")
   {
     let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> DungeonDraft Import</button>")
-    let path = game.settings.get("dd-import", "importPath")
+    let settings = game.settings.get("dd-import", "importSettings")
+    let path = settings.path;
+    let offset = settings.offset;
+    let wallLength = settings.wallLength;
+    let wallAmount = settings.wallAmount;
+    let fidelity = settings.fidelity;
     button.click(function() {
       new Dialog({
         title : "DungeonDraft Import",
         content : 
-        `</div>
+        `<div>
          <div class="form-group import"><div class="import-options">Scene Name</div><input type = 'text' name = "sceneName"/></div>
          <div class="form-group import"><div class="import-options">Path</div><input type = 'text' name = "path" value="${path}"/></div>
-         <div class="form-group import"><div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</div><input type="range" min="1" max="6" value= "3" name="fidelity"></div>
-        <div class="form-group import"><div class="import-options" title = "Offset to the wall in the file, from -3 to +3  in 1/10th grid">Offset</div><input type="number" min="-3" max="3" value= "1" name="offset"></div>
+         <div class="form-group import"><div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</div><input type="range" min="1" max="6" value= "${fidelity}" name="fidelity"></div>
          <div class="form-group import"><div class="import-options">Upload</div><input class="file-picker" type = 'file' accept = ".dd2vtt"/></div>
+        <div>
+        <hr />
+        <span><b>Advanced:</b></span>
+        <div class="form-group import"><div class="import-options" title = "Offset to the wall in the file, from -3 to +3  in 1/10th grid">Offset</div><input type="number" min="-3" step="0.1" max="3" value="${offset}" name="offset"></div>
+        <div class="form-group import"><div class="import-options" title = "Length of cave walls">Threshhold for cave wall length</div><input type="number" min="0" max="2" step="0.05" value= "${wallLength}" name="wallLengthThreshold"></div>
+        <div class="form-group import"><div class="import-options" title = "Length of cave walls">Threshhold for cave wall length</div><input type="number" min="0" max="100" step="5" value= "${wallAmount}" name="wallAmountThreshold"></div>
+        </div>
         `,
         buttons :{
           import : {
@@ -22,12 +32,20 @@ Hooks.on("renderSidebarTab", async (app, html) => {
               let file = JSON.parse(await html.find(".file-picker")[0].files[0].text())
               let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
               let sceneName = html.find('[name="sceneName"]').val()
-              let fidelity = html.find('[name="fidelity"]').val()
-              let offset = html.find('[name="offset"]').val()/10.0
+              let fidelity = parseInt(html.find('[name="fidelity"]').val())
+              let offset = parseFloat(html.find('[name="offset"]').val())
+              let wallLength = parseFloat(html.find('[name="wallLengthThreshold"]').val())
+              let wallAmount = parseFloat(html.find('[name="wallAmountThreshold"]').val())
               let path = html.find('[name="path"]').val()
               await DDImporter.uploadFile(file, fileName, path)
-              DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset)
-              game.settings.set("dd-import", "importPath", path);
+              DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, wallLength, wallAmount)
+              game.settings.set("dd-import", "importSettings",{
+                path:path,
+                offset: offset,
+                wallLength: wallLength,
+                wallAmount: wallAmount,
+                fidelity: fidelity,
+              });
             }
           },
           cancel: {
@@ -42,12 +60,17 @@ Hooks.on("renderSidebarTab", async (app, html) => {
 })
 
 Hooks.on("init", () => {
-  game.settings.register("dd-import", "importPath", {
+  game.settings.register("dd-import", "importSettings", {
     name : "DungeonDraft Default Path",
     scope: "world",
     config: "false",
-    type: String,
-    default: "worlds/" + game.world.name
+    default: {
+      path:"worlds/" + game.world.name,
+      offset: 0.1,
+      wallLength: 0.25,
+      wallAmount: 75,
+      fidelity: 3,
+    }
   })
 })
 
@@ -68,7 +91,7 @@ class DDImporter {
     await FilePicker.upload("data", path, uploadFile, {})
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset)
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset, wallLength, wallAmount)
   {
 
     let newScene = await Scene.create({
@@ -78,13 +101,13 @@ class DDImporter {
      width : file.resolution.pixels_per_grid * file.resolution.map_size.x, 
      height : file.resolution.pixels_per_grid * file.resolution.map_size.y
     })
-    let walls = this.GetWalls(file, newScene, 6-fidelity, offset)
+    let walls = this.GetWalls(file, newScene, 6-fidelity, offset, wallLength, wallAmount)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
     newScene.update({walls: walls.concat(doors), lights : lights})
   }
 
-  static GetWalls(file, scene, skipNum, offset)
+  static GetWalls(file, scene, skipNum, offset, wallLength, wallAmount)
   {
     let walls = [];
     let ddWalls = file.line_of_sight
@@ -106,7 +129,7 @@ class DDImporter {
         }
       }
       if (offset != 0){
-        wallSet = this.makeOffsetWalls(wallSet, offset)
+        wallSet = this.makeOffsetWalls(wallSet, offset, wallLength, wallAmount)
       }
       // Connect to walls that end *before* the current wall
       for (let i = 0; i < connectedTo.length; i++)
