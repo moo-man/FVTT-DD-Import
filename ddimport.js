@@ -240,7 +240,7 @@ class DDImporter {
   static GetOffset(slope, offset, dir){
     let yoffset = Math.sqrt((offset*offset)/(1+slope*slope));
     let xoffset = slope * yoffset;
-    if ((slope <= 0 && dir) || (slope >= 0 && dir)){
+    if ((slope <= 0 && dir) || (slope > 0 && dir)){
       return {x : xoffset, y : -yoffset}
     }
     return {x : -xoffset, y : yoffset}
