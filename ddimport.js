@@ -5,8 +5,6 @@ Hooks.on("renderSidebarTab", async (app, html) => {
     let settings = game.settings.get("dd-import", "importSettings")
     let path = settings.path;
     let offset = settings.offset;
-    let wallLength = settings.wallLength;
-    let wallAmount = settings.wallAmount;
     let fidelity = settings.fidelity;
     button.click(function() {
       new Dialog({
@@ -21,8 +19,6 @@ Hooks.on("renderSidebarTab", async (app, html) => {
         <hr />
         <span><b>Advanced:</b></span>
         <div class="form-group import"><div class="import-options" title = "Offset to the wall in the file, from -3 to +3  in 1/10th grid">Offset</div><input type="number" min="-3" step="0.1" max="3" value="${offset}" name="offset"></div>
-        <div class="form-group import"><div class="import-options" title = "Length of cave walls">Threshhold for cave wall length</div><input type="number" min="0" max="2" step="0.05" value= "${wallLength}" name="wallLengthThreshold"></div>
-        <div class="form-group import"><div class="import-options" title = "Length of cave walls">Threshhold for cave wall length</div><input type="number" min="0" max="100" step="5" value= "${wallAmount}" name="wallAmountThreshold"></div>
         </div>
         `,
         buttons :{
@@ -33,17 +29,13 @@ Hooks.on("renderSidebarTab", async (app, html) => {
               let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
               let sceneName = html.find('[name="sceneName"]').val()
               let fidelity = parseInt(html.find('[name="fidelity"]').val())
-              let offset = parseFloat(html.find('[name="offset"]').val())
-              let wallLength = parseFloat(html.find('[name="wallLengthThreshold"]').val())
-              let wallAmount = parseFloat(html.find('[name="wallAmountThreshold"]').val())
+              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
               let path = html.find('[name="path"]').val()
               await DDImporter.uploadFile(file, fileName, path)
-              DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, wallLength, wallAmount)
+              DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset)
               game.settings.set("dd-import", "importSettings",{
                 path:path,
                 offset: offset,
-                wallLength: wallLength,
-                wallAmount: wallAmount,
                 fidelity: fidelity,
               });
             }
@@ -67,8 +59,6 @@ Hooks.on("init", () => {
     default: {
       path:"worlds/" + game.world.name,
       offset: 0.1,
-      wallLength: 0.25,
-      wallAmount: 75,
       fidelity: 3,
     }
   })
@@ -91,7 +81,7 @@ class DDImporter {
     await FilePicker.upload("data", path, uploadFile, {})
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, wallLength, wallAmount)
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset)
   {
 
     let newScene = await Scene.create({
@@ -101,17 +91,16 @@ class DDImporter {
      width : file.resolution.pixels_per_grid * file.resolution.map_size.x, 
      height : file.resolution.pixels_per_grid * file.resolution.map_size.y
     })
-    let walls = this.GetWalls(file, newScene, 6-fidelity, offset, wallLength, wallAmount)
+    let walls = this.GetWalls(file, newScene, 6-fidelity, offset)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
     newScene.update({walls: walls.concat(doors), lights : lights})
   }
 
-  static GetWalls(file, scene, skipNum, offset, wallLength, wallAmount)
+  static GetWalls(file, scene, skipNum, offset)
   {
     let walls = [];
     let ddWalls = file.line_of_sight
-    ddWalls = this.preprocessWalls(ddWalls, skipNum)
 
     for (let wsIndex = 0; wsIndex < ddWalls.length; wsIndex++)
     {
@@ -129,8 +118,9 @@ class DDImporter {
         }
       }
       if (offset != 0){
-        wallSet = this.makeOffsetWalls(wallSet, offset, wallLength, wallAmount)
+        wallSet = this.makeOffsetWalls(wallSet, offset)
       }
+      wallSet = this.preprocessWalls(wallSet, skipNum)
       // Connect to walls that end *before* the current wall
       for (let i = 0; i < connectedTo.length; i++)
       {
@@ -164,41 +154,38 @@ class DDImporter {
     }).data
   }
 
-  static preprocessWalls(walls, numToSkip)
+  static preprocessWalls(wallSet, numToSkip)
   {
-    for (let wallSet of walls)
+    let toRemove = [];
+    let skipCounter = 0;
+    for (let i = 0; i < wallSet.length-2; i++)
     {
-      let toRemove = [];
-      let skipCounter = 0;
-      for (let i = 0; i < wallSet.length-2; i++)
+      if (i != 0 && i != wallSet.length-2 && this.distance(wallSet[i], wallSet[i+1]) < 0.3)
       {
-        if (i != 0 && i != wallSet.length-2 && this.distance(wallSet[i], wallSet[i+1]) < 0.3)
+        if (skipCounter == numToSkip)
         {
-          if (skipCounter == numToSkip)
-          {
-            skipCounter = 0;
-          }
-          else 
-          {
-            skipCounter++;
-            toRemove.push(i);
-          }
+          skipCounter = 0;
         }
         else 
-          skipCounter = 0;
-      }
-      if (toRemove.length)
-      {
-        for (let i = toRemove.length-1; i > 0; i--)
         {
-          wallSet.splice(toRemove[i], 1)
+          skipCounter++;
+          toRemove.push(i);
         }
       }
+      else 
+        skipCounter = 0;
     }
-    return walls
+    if (toRemove.length)
+    {
+      for (let i = toRemove.length-1; i > 0; i--)
+      {
+        wallSet.splice(toRemove[i], 1)
+      }
+    }
+    return wallSet
   }
 
-  static makeOffsetWalls(wallSet, offset, shortWallThreshold = 0.25, shortWallAmountThreshold = 0.6){
+  static makeOffsetWalls(wallSet, offset, shortWallThreshold=0.3, shortWallAmountThreshold=70){
     let wallinfo = [];
     let shortWalls = this.GetShortWallCount(wallSet, shortWallThreshold);
     // Assume short wallsets or containing long walls are not caves.
