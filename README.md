@@ -1,7 +1,7 @@
 # FVTT-DD-Importer
 Allows Importing Dungeondraft map files into FoundryVTT
 
-**Version 0.7**: Adds offset for Cave Walls, thanks @m42e!
+**Version 0.8**: Add more resiliency to user input
 
 Manifest: `https://raw.githubusercontent.com/moo-man/FVTT-DD-Import/master/module.json`
 

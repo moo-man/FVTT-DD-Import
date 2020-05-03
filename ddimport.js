@@ -29,8 +29,8 @@ Hooks.on("renderSidebarTab", async (app, html) => {
               let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
               let sceneName = html.find('[name="sceneName"]').val()
               let fidelity = parseInt(html.find('[name="fidelity"]').val())
-              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
-              let path = html.find('[name="path"]').val()
+              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.')) || 0
+              let path = html.find('[name="path"]').val() || "."
               await DDImporter.uploadFile(file, fileName, path)
               DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset)
               game.settings.set("dd-import", "importSettings",{
@@ -55,7 +55,7 @@ Hooks.on("init", () => {
   game.settings.register("dd-import", "importSettings", {
     name : "DungeonDraft Default Path",
     scope: "world",
-    config: "false",
+    config: false,
     default: {
       path:"worlds/" + game.world.name,
       offset: 0.1,
