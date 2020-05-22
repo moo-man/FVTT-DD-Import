@@ -1,7 +1,7 @@
 # FVTT-DD-Importer
 Allows Importing Dungeondraft map files into FoundryVTT
 
-**Version 0.8**: Add more resiliency to user input
+**Version 0.81**: Add more resiliency to user input
 
 Manifest: `https://raw.githubusercontent.com/moo-man/FVTT-DD-Import/master/module.json`
 
