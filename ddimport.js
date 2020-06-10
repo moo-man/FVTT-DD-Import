@@ -27,7 +27,7 @@ Hooks.on("renderSidebarTab", async (app, html) => {
             callback : async (html) => {
               let file = JSON.parse(await html.find(".file-picker")[0].files[0].text())
               let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
-              let sceneName = html.find('[name="sceneName"]').val()
+              let sceneName = html.find('[name="sceneName"]').val() || fileName
               let fidelity = parseInt(html.find('[name="fidelity"]').val())
               let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.')) || 0
               let path = html.find('[name="path"]').val() || ""
