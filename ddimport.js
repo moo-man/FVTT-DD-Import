@@ -85,6 +85,26 @@ class DDImporter {
   {
 
     let img = path ? path + "/" + fileName + ".png" : fileName + ".png";
+    let existingScene = game.scenes.find(s => s.name == sceneName)
+    if (existingScene)
+      new Dialog({
+          title : "Existing Scene",
+          content : "Replace Exsiting Scene?",
+          buttons : {
+            yes : {
+              label: "Yes",
+              callback: () => {
+                existingScene.delete();
+              }
+            },
+            no : {
+              label : "No",
+              callback: () => {}
+            }
+          }
+
+        }
+      ).render(true);
     let newScene = await Scene.create({
      name : sceneName,
      grid: file.resolution.pixels_per_grid, 
