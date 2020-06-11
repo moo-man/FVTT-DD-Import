@@ -12,13 +12,13 @@ Hooks.on("renderSidebarTab", async (app, html) => {
         content : 
         `<div>
          <div class="form-group import"><div class="import-options">Scene Name</div><input type = 'text' name = "sceneName"/></div>
-         <div class="form-group import"><div class="import-options">Path</div><input type = 'text' name = "path" value="${path}"/></div>
-         <div class="form-group import"><div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</div><input type="range" min="1" max="6" value= "${fidelity}" name="fidelity"></div>
+         <div class="form-group import" title="Where to save the embedded PNG map. Ex: worlds/yourworld/maps"><div class="import-options">Path</div><input type = 'text' name = "path" value="${path}"/></div>
+         <div class="form-group import" title="Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped"><div class="import-options">Fidelity</div><input type="range" min="1" max="6" value= "${fidelity}" name="fidelity"></div>
          <div class="form-group import"><div class="import-options">Upload</div><input class="file-picker" type = 'file' accept = ".dd2vtt"/></div>
         <div>
         <hr />
         <span><b>Advanced:</b></span>
-        <div class="form-group import"><div class="import-options" title = "Offset to the wall in the file, from -3 to +3  in 1/10th grid">Offset</div><input type="number" min="-3" step="0.1" max="3" value="${offset}" name="offset"></div>
+        <div class="form-group import" title = "This parameter nudges cave walls away from the edge to see more of the wall."><div class="import-options">Offset</div><input type="number" min="-3" step="0.1" max="3" value="${offset}" name="offset"></div>
         </div>
         `,
         buttons :{
@@ -27,10 +27,10 @@ Hooks.on("renderSidebarTab", async (app, html) => {
             callback : async (html) => {
               let file = JSON.parse(await html.find(".file-picker")[0].files[0].text())
               let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
-              let sceneName = html.find('[name="sceneName"]').val()
+              let sceneName = html.find('[name="sceneName"]').val() || fileName
               let fidelity = parseInt(html.find('[name="fidelity"]').val())
-              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
-              let path = html.find('[name="path"]').val()
+              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.')) || 0
+              let path = html.find('[name="path"]').val() || ""
               await DDImporter.uploadFile(file, fileName, path)
               DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset)
               game.settings.set("dd-import", "importSettings",{
@@ -55,7 +55,7 @@ Hooks.on("init", () => {
   game.settings.register("dd-import", "importSettings", {
     name : "DungeonDraft Default Path",
     scope: "world",
-    config: "false",
+    config: false,
     default: {
       path:"worlds/" + game.world.name,
       offset: 0.1,
@@ -84,13 +84,14 @@ class DDImporter {
   static async DDImport(file, sceneName, fileName, path, fidelity, offset)
   {
 
+    let img = path ? path + "/" + fileName + ".png" : fileName + ".png";
     let newScene = await Scene.create({
-     img : path + "/" + fileName + ".png",
      name : sceneName,
      grid: file.resolution.pixels_per_grid, 
      width : file.resolution.pixels_per_grid * file.resolution.map_size.x, 
-     height : file.resolution.pixels_per_grid * file.resolution.map_size.y
+     height : file.resolution.pixels_per_grid * file.resolution.map_size.y,
     })
+    newScene.update({img : img})
     let walls = this.GetWalls(file, newScene, 6-fidelity, offset)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
