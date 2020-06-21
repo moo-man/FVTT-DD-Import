@@ -321,7 +321,8 @@ class DDImporter {
             (door.bounds[1].x * file.resolution.pixels_per_grid) + offsetX,
             (door.bounds[1].y * file.resolution.pixels_per_grid) + offsetY
           ],
-          door: true
+          door: true,
+          sense: door.closed?1:0
         }).data)
     }
 
