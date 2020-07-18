@@ -102,9 +102,15 @@ class DDImporter {
   }
 
   static async DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source) {
-    let imagePath = path + "/" + fileName + "." + extension;
+    if (path && path[path.length-1] != "/")
+      path = path + "/"
+    if (path && path[0] != "/")
+      path = "/" + path
+    if (!path) 
+      path = "/"
+    let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
-      imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com/" + imagePath;
+      imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
     let newScene = await Scene.create({
       img: imagePath,
@@ -201,10 +207,8 @@ class DDImporter {
     // Assume short wallsets or containing long walls are not caves.
     let shortWallAmount = Math.round((shortWalls / wallSet.length) * 100);
     if (wallSet.length < 10 || shortWallAmount < shortWallAmountThreshold) {
-      console.debug(`seems not to be a cave: ${wallSet.length} walls and ${shortWallAmount}% short Walls`);
       return wallSet
     }
-    console.debug(`seems to be a CAVE: ${wallSet.length} walls and ${shortWallAmount}% short Walls`);
     // connect the ends if they match
     if (wallSet[0].x == wallSet[wallSet.length - 1].x && wallSet[0].y == wallSet[wallSet.length - 1].y) {
       wallSet.push(wallSet[1]);
