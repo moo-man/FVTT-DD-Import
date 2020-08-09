@@ -1,69 +1,11 @@
 Hooks.on("renderSidebarTab", async (app, html) => {
   if (app.options.id == "scenes") {
     let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> DungeonDraft Import</button>")
-    let settings = game.settings.get("dd-import", "importSettings")
-    let sourceData = settings.source === "data" ? "selected" : "";
-    let sourceS3 = settings.source === "s3" ? "selected" : "";
-    let extPng = settings.extension === "png" ? "selected" : "";
-    let extWebp = settings.extension === "webp" ? "selected" : "";
-    let bucket = settings.bucket;
-    let region = settings.region;
-    let path = settings.path;
-    let offset = settings.offset;
-    let fidelity = settings.fidelity;
+ 
     button.click(function () {
-      new Dialog({
-        title: "DungeonDraft Import",
-        content:
-          `<div>
-         <div class="form-group import"><div class="import-options">Scene Name</div><input type = 'text' name = "sceneName"/></div>
-         <div class="form-group import"><div class="import-options">Storage Type</div><select name = "source"><option ${sourceData} value="data">User Data</option><option ${sourceS3} value="s3">Amazon S3</option></select></div>
-         <div class="form-group import"><div class="import-options">Image Extension</div><select name = "extension"><option ${extPng} value="png">png</option><option ${extWebp} value="webp">webp</option></select></div>
-         <div class="form-group import"><div class="import-options">Bucket Name for S3 Storage</div><input type = 'text' name = "bucket" value="${bucket}"/></div>
-         <div class="form-group import"><div class="import-options">Region Name for S3 Storage</div><input type = 'text' name = "region" value="${region}"/></div>
-         <div class="form-group import"><div class="import-options">Path</div><input type = 'text' name = "path" value="${path}"/></div>
-         <div class="form-group import"><div class="import-options" title = "Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</div><input type="range" min="1" max="6" value= "${fidelity}" name="fidelity"></div>
-         <div class="form-group import"><div class="import-options">Upload</div><input class="file-picker" type = 'file' accept = ".dd2vtt"/></div>
-        <div>
-        <hr />
-        <span><b>Advanced:</b></span>
-        <div class="form-group import"><div class="import-options" title = "Offset to the wall in the file, from -3 to +3  in 1/10th grid">Offset</div><input type="number" min="-3" step="0.1" max="3" value="${offset}" name="offset"></div>
-        </div>
-        `,
-        buttons: {
-          import: {
-            label: "Import",
-            callback: async (html) => {
-              let file = JSON.parse(await html.find(".file-picker")[0].files[0].text())
-              let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
-              let sceneName = html.find('[name="sceneName"]').val()
-              let fidelity = parseInt(html.find('[name="fidelity"]').val())
-              let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
-              let source = html.find('[name="source"]').val()
-              let extension = html.find('[name="extension"]').val()
-              let bucket = html.find('[name="bucket"]').val()
-              let region = html.find('[name="region"]').val()
-              let path = html.find('[name="path"]').val()
-              await DDImporter.uploadFile(file, fileName, path, source, extension, bucket)
-              DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
-              game.settings.set("dd-import", "importSettings", {
-                source: source,
-                extension: extension,
-                bucket: bucket,
-                region: region,
-                path: path,
-                offset: offset,
-                fidelity: fidelity,
-              });
-            }
-          },
-          cancel: {
-            label: "Cancel"
-          }
-        },
-        default: "import"
-      }).render(true);
-    })
+      new DDImporter().render(true);
+    });
+    
     html.find(".directory-footer").append(button);
   }
 })
@@ -83,11 +25,140 @@ Hooks.on("init", () => {
       fidelity: 3,
     }
   })
+
+  game.settings.register("dd-import", "openableWindows", {
+    name: "Openable Windows",
+    hint: "Should windows be openable?",
+    scope: "world",
+    config: "false",
+    type: Boolean,
+    default: false
+  })
 })
 
 
 
-class DDImporter {
+class DDImporter extends Application
+{
+
+
+  static get defaultOptions()
+  {
+      const options = super.defaultOptions;
+      options.id = "dd-importer";
+      options.template = "modules/dd-import/importer.html"
+      options.classes.push("dd-importer");
+      options.resizable = false;
+      options.height = "auto";
+      options.width = 400;
+      options.minimizable = true;
+      options.title = "Dungeondraft Importer"
+      return options;
+}
+
+
+getData(){
+  let data = super.getData();
+  let settings = game.settings.get("dd-import", "importSettings")
+
+  data.dataSources = {
+    data: "User Data",
+    s3 : "S3"
+  }
+  data.defaultSource = settings.source || "data";
+
+  data.imgExtensions = {
+    "png": "png",
+    "webp" : "webp"
+  }
+  data.defaultExtension = settings.extension || "png";
+
+  data.s3Bucket = settings.bucket || "",
+  data.s3Region = settings.region || "",
+
+  data.path = settings.path || "";
+  data.offset = settings.offset || 0;
+  return data
+}
+
+
+
+activateListeners(html)
+{
+  super.activateListeners(html)
+  
+  DDImporter.checkPath(html)
+  DDImporter.checkFidelity(html)
+  DDImporter.checkSource(html)
+
+  html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
+  html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
+  html.find(".source-selector").change(ev => DDImporter.checkSource(html))
+    
+  html.find(".import-map").click(async ev => {
+    let file = JSON.parse(await html.find(".file-picker")[0].files[0].text());
+    let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
+    let sceneName = html.find('[name="sceneName"]').val() || fileName
+    let fidelity = parseInt(html.find('[name="fidelity"]').val())
+    let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
+    let source = html.find('[name="source"]').val()
+    let extension = html.find('[name="extension"]').val()
+    let bucket = html.find('[name="bucket"]').val()
+    let region = html.find('[name="region"]').val()
+    let path = html.find('[name="path"]').val()
+    await DDImporter.uploadFile(file, fileName, path, source, extension, bucket)
+    DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
+    game.settings.set("dd-import", "importSettings", {
+      source: source,
+      extension: extension,
+      bucket: bucket,
+      region: region,
+      path: path,
+      offset: offset,
+      fidelity: fidelity,
+    });
+    this.close();
+
+  })
+}
+
+static checkPath(html)
+{
+  let pathValue = $("[name='path']")[0].value
+  if (pathValue[1] == ":")
+  {
+    html.find(".warning.path")[0].style.display = ""
+  }
+  else
+    html.find(".warning.path")[0].style.display = "none"
+}
+
+static checkFidelity(html)
+{  
+  let fidelityValue= $("[name='fidelity']")[0].value
+  if (Number(fidelityValue) > 1)
+  {
+    html.find(".warning.fidelity")[0].style.display = ""
+  }
+  else
+    html.find(".warning.fidelity")[0].style.display = "none"
+
+}
+
+static checkSource(html)
+{
+  let sourceValue= $("[name='source']")[0].value
+  if (sourceValue == "s3")
+  {
+    html.find(".s3-section")[0].style.display=""
+  }
+  else
+  {
+    html.find(".s3-section")[0].style.display="none"
+  }
+
+}
+
 
   static async uploadFile(file, name, path, source, extension, bucket) {
     var byteString = atob(file.image);
@@ -113,7 +184,6 @@ class DDImporter {
       imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
     let newScene = await Scene.create({
-      img: imagePath,
       name: sceneName,
       grid: file.resolution.pixels_per_grid,
       width: file.resolution.pixels_per_grid * file.resolution.map_size.x,
@@ -122,7 +192,7 @@ class DDImporter {
     let walls = this.GetWalls(file, newScene, 6 - fidelity, offset)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
-    newScene.update({ walls: walls.concat(doors), lights: lights })
+    newScene.update({ img: imagePath, walls: walls.concat(doors), lights: lights })
   }
 
   static GetWalls(file, scene, skipNum, offset) {
@@ -310,7 +380,7 @@ class DDImporter {
             (door.bounds[1].y * file.resolution.pixels_per_grid) + offsetY
           ],
           door: true,
-          sense: door.closed?1:0
+          sense: (door.closed || game.settings.get("dd-import", "openableWindows")) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
         }).data)
     }
 
