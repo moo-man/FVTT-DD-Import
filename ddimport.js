@@ -14,7 +14,7 @@ Hooks.on("init", () => {
   game.settings.register("dd-import", "importSettings", {
     name: "DungeonDraft Default Path",
     scope: "world",
-    config: "false",
+    config: false,
     default: {
       source: "data",
       extension: "png",
@@ -28,9 +28,9 @@ Hooks.on("init", () => {
 
   game.settings.register("dd-import", "openableWindows", {
     name: "Openable Windows",
-    hint: "Should windows be openable?",
+    hint: "Should windows be openable? Note that you can make portals import as windows by unchecking 'block light' in Dungeondraft",
     scope: "world",
-    config: "false",
+    config: true,
     type: Boolean,
     default: false
   })
@@ -379,8 +379,8 @@ static checkSource(html)
             (door.bounds[1].x * file.resolution.pixels_per_grid) + offsetX,
             (door.bounds[1].y * file.resolution.pixels_per_grid) + offsetY
           ],
-          door: true,
-          sense: (door.closed || game.settings.get("dd-import", "openableWindows")) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
+          door: game.settings.get("dd-import", "openableWindows") ? true : door.closed, // If openable windows - all portals should be doors, otherwise, only portals that "block light" should be openable (doors)
+          sense: (door.closed) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
         }).data)
     }
 
