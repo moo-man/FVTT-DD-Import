@@ -3,7 +3,7 @@ Allows Importing Dungeondraft map files into FoundryVTT
 
 **Version 0.11**
 
-Manifest: `https://raw.githubusercontent.com/timothy-s-dev/FVTT-DD-Import/master/module.json`
+Manifest: `https://raw.githubusercontent.com/moo-man/FVTT-DD-Import/master/module.json`
 
 
 ## Usage Instructions
