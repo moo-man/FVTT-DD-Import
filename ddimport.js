@@ -73,8 +73,8 @@ getData(){
   }
   data.defaultExtension = settings.extension || "png";
 
-  data.s3Bucket = settings.bucket || "",
-  data.s3Region = settings.region || "",
+  data.bucket = settings.bucket || "",
+  data.region = settings.region || "",
 
   data.path = settings.path || "";
   data.offset = settings.offset || 0;
