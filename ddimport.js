@@ -96,8 +96,8 @@ activateListeners(html)
   html.find(".source-selector").change(ev => DDImporter.checkSource(html))
     
   html.find(".import-map").click(async ev => {
-    let file = JSON.parse(await html.find(".file-picker")[0].files[0].text());
-    let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
+    let file = JSON.parse(await html.find(".file-input")[0].files[0].text());
+    let fileName = html.find(".file-input")[0].files[0].name.split(".")[0];
     let sceneName = html.find('[name="sceneName"]').val() || fileName
     let fidelity = parseInt(html.find('[name="fidelity"]').val())
     let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))

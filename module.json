@@ -2,7 +2,7 @@
   "name": "dd-import",
   "title": "DungeonDraft Importer",
   "description": "Imports scene elements from Dungeon Draft map files",
-  "version": "0.11",
+  "version": "1.0",
   "author": "Moo Man, m42e, jacquie",
   "scripts": [
     "./ddimport.js"
@@ -11,8 +11,8 @@
     "./styles.css"
   ],
   "packs": [],
-  "minimumCoreVersion": "0.5.3",
-  "compatibleCoreVersion": "0.6.5",
+  "minimumCoreVersion": "0.6.6",
+  "compatibleCoreVersion": "0.7.2",
   "manifest": "https://raw.githubusercontent.com/moo-man/FVTT-DD-Import/master/module.json",
   "download": "https://github.com/moo-man/FVTT-DD-Import/archive/master.zip"
 }
