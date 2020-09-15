@@ -1,6 +1,6 @@
 Hooks.on("renderSidebarTab", async (app, html) => {
   if (app.options.id == "scenes") {
-    let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> DungeonDraft Import</button>")
+    let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> Dungeondraft Import</button>")
  
     button.click(function () {
       new DDImporter().render(true);
@@ -12,7 +12,7 @@ Hooks.on("renderSidebarTab", async (app, html) => {
 
 Hooks.on("init", () => {
   game.settings.register("dd-import", "importSettings", {
-    name: "DungeonDraft Default Path",
+    name: "Dungeondraft Default Path",
     scope: "world",
     config: false,
     default: {
@@ -96,28 +96,40 @@ activateListeners(html)
   html.find(".source-selector").change(ev => DDImporter.checkSource(html))
     
   html.find(".import-map").click(async ev => {
-    let file = JSON.parse(await html.find(".file-picker")[0].files[0].text());
-    let fileName = html.find(".file-picker")[0].files[0].name.split(".")[0];
-    let sceneName = html.find('[name="sceneName"]').val() || fileName
-    let fidelity = parseInt(html.find('[name="fidelity"]').val())
-    let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
-    let source = html.find('[name="source"]').val()
-    let extension = html.find('[name="extension"]').val()
-    let bucket = html.find('[name="bucket"]').val()
-    let region = html.find('[name="region"]').val()
-    let path = html.find('[name="path"]').val()
-    await DDImporter.uploadFile(file, fileName, path, source, extension, bucket)
-    DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
-    game.settings.set("dd-import", "importSettings", {
-      source: source,
-      extension: extension,
-      bucket: bucket,
-      region: region,
-      path: path,
-      offset: offset,
-      fidelity: fidelity,
-    });
-    this.close();
+    try 
+    {
+      let file = JSON.parse(await html.find(".file-input")[0].files[0].text());
+      let fileName = html.find(".file-input")[0].files[0].name.split(".")[0];
+      let sceneName = html.find('[name="sceneName"]').val() || fileName
+      let fidelity = parseInt(html.find('[name="fidelity"]').val())
+      let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
+      let source = html.find('[name="source"]').val()
+      let extension = html.find('[name="extension"]').val()
+      let bucket = html.find('[name="bucket"]').val()
+      let region = html.find('[name="region"]').val()
+      let path = html.find('[name="path"]').val()
+
+      if ((!bucket || !region) && source == "s3")
+        return ui.notifications.error("Bucket and Region required for S3 upload")
+
+      this.close();
+      ui.notifications.notify("Uploading...")
+      await DDImporter.uploadFile(file, fileName, path, source, extension, bucket)
+      DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
+      game.settings.set("dd-import", "importSettings", {
+        source: source,
+        extension: extension,
+        bucket: bucket,
+        region: region,
+        path: path,
+        offset: offset,
+        fidelity: fidelity,
+      });
+    }
+    catch (e)
+    {
+      ui.notifications.error("Error Importing: " + e)
+    }
 
   })
 }
