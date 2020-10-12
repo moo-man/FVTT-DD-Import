@@ -1,4 +1,5 @@
-<div>
+<dit
+>
   <div class="form-group import">
     <label class="import-options">Scene Name</label><input type='text' name="sceneName" />
   </div>
@@ -41,7 +42,19 @@
     Higher Fidelity creates a very large amount of cave walls. Recommended to stay at the minimum.
   </div>
   <div class="form-group import">
-    <label class="import-options">Upload .dd2vtt</label><input class="file-input" type='file' accept=".dd2vtt" />
+    <label class="import-options">Upload .dd2vtt</label>
+  </div>
+  <div class="form-group import" id="dd-upload-files">
+    <label class="import-options">Multifile does not work with webp</label><br/>
+    <label class="import-options">MultiImageMode</label>
+    <select name="multi-mode">
+      <option value="g">Grid</option>
+      <option value="y">Vertical</option>
+      <option value="x">Horizontal</option>
+    </select>
+    <button type="button" class="add-file">Add another file</button>
+    <input class="file-input" type='file' name='file0' accept=".dd2vtt" />
+    <input class="hidden-input" type='hidden' value="1" name="filecount" />
   </div>
   <div>
     <hr />
