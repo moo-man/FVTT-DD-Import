@@ -38,6 +38,45 @@ Hooks.on("init", () => {
 
 
 
+let Uint8ToBase64 = function (u8Arr){
+  var CHUNK_SIZE = 0x8000; //arbitrary number
+  var index = 0;
+  var length = u8Arr.length;
+  var result = '';
+  var slice;
+  while (index < length) {
+    slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, length)); 
+    result += String.fromCharCode.apply(null, slice);
+    index += CHUNK_SIZE;
+  }
+  return btoa(result);
+}
+
+let loadImg = function(buffer){
+  return new Promise( function(resolve, reject) {
+    let rawImage = new Image();
+    rawImage.addEventListener('load', function(){
+      resolve(rawImage)
+    })
+    rawImage.src='data:image/png;base64,'+Uint8ToBase64(buffer);
+  });
+}
+
+let convertToWebP = function (rawImage) {
+  return new Promise(function (resolve, reject) {
+    let canvas = document.createElement('canvas');
+
+    canvas.width = rawImage.width;
+    canvas.height = rawImage.height;
+    let ctx = canvas.getContext("2d");
+    ctx.drawImage(rawImage, 0, 0);
+
+    canvas.toBlob(function (blob) {
+      resolve(blob.arrayBuffer());
+    }, "image/webp");
+  });
+}
+
 class DDImporter extends Application
 {
 
@@ -122,6 +161,8 @@ activateListeners(html)
       let path = html.find('[name="path"]').val()
       let filecount = html.find('[name="filecount"]').val()
       let mode =  html.find('[name="multi-mode"]').val()
+      let toWebp =  html.find('[name="convert-to-webp"]').val() == "on"
+      console.log(toWebp)
 
       if ((!bucket || !region) && source == "s3")
         return ui.notifications.error("Bucket and Region required for S3 upload")
@@ -130,7 +171,10 @@ activateListeners(html)
       if (filecount == 1){
         let file = JSON.parse(await html.find(".file-input")[0].files[0].text());
         ui.notifications.notify("Uploading...")
-        await DDImporter.uploadFile(file, fileName, path, source, extension, bucket)
+        if (toWebp){
+          extension = 'webp'
+        }
+        await DDImporter.uploadFile(file, fileName, path, source, extension, bucket, toWebp)
         DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
         game.settings.set("dd-import", "importSettings", {
           source: source,
@@ -143,9 +187,11 @@ activateListeners(html)
         });
       }else{
         let files = []
+        fileName = 'combined'
         for (var i=0; i < filecount; i++){
           let fe = html.find("[name=file"+i+"]")
           files[i] = JSON.parse(await fe[0].files[0].text());
+          fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
         }
         let size = {}
         size.x = files[0].resolution.map_size.x
@@ -205,20 +251,13 @@ activateListeners(html)
         ui.notifications.notify("Combining Images")
         for (var fidx=0; fidx < files.length; fidx++){
             let f = files[fidx];
-            var byteString = atob(f.image);
-            var ab = new ArrayBuffer(byteString.length);
-            var ia = new Uint8Array(ab);
-
-            for (var i = 0; i < byteString.length; i++) {
-              ia[i] = byteString.charCodeAt(i);
-            }
+            let ab = DDImporter.DecodeImage(f)
             let srcImg = await Jimp.read(ab)
             await mycanvas.blit(srcImg, f.pos_in_image.x, f.pos_in_image.y, 0, 0, size.x, size.y)
         }
         ui.notifications.notify("Uploading image ....")
         let bfr = await mycanvas.getBufferAsync(Jimp.MIME_PNG); 
-        let uploadFile = new File([bfr], fileName + "." + "png", { type: 'image/png' });
-        await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
+        await DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket, toWebp)
         let aggregated = {
             "format": 0.2,
             "resolution": {
@@ -316,7 +355,7 @@ static checkSource(html)
 }
 
 
-  static async uploadFile(file, name, path, source, extension, bucket) {
+  static DecodeImage(file){
     var byteString = atob(file.image);
     var ab = new ArrayBuffer(byteString.length);
     var ia = new Uint8Array(ab);
@@ -324,6 +363,26 @@ static checkSource(html)
     for (var i = 0; i < byteString.length; i++) {
       ia[i] = byteString.charCodeAt(i);
     }
+    return ab;
+  }
+
+  static async uploadFile(file, name, path, source, extension, bucket, toWebp) {
+    var ab, ia;
+
+    if (file instanceof Uint8Array){
+      ab = new ArrayBuffer(file)
+      ia = file
+    } else{
+      ab = this.DecodeImage(file)
+      ia = new Uint8Array(ab);
+    }
+
+    if(toWebp){
+      let rawImage = await loadImg(ia);
+      ab = await convertToWebP(rawImage)
+      extension = 'webp'
+    }
+
     let uploadFile = new File([ab], name + "." + extension, { type: 'image/' + extension });
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
@@ -349,7 +408,7 @@ static checkSource(html)
     let walls = this.GetWalls(file, newScene, 6 - fidelity, offset)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
-    newScene.update({walls: walls.concat(doors), lights: lights, width: file.resolution.pixels_per_grid * file.resolution.map_size.x, height: file.resolution.pixels_per_grid * file.resolution.map_size.y})
+    newScene.update({walls: walls.concat(doors), lights: lights, width: file.resolution.pixels_per_grid * file.resolution.map_size.x, height: file.resolution.pixels_per_grid * file.resolution.map_size.y, img: imagePath})
   }
 
   static GetWalls(file, scene, skipNum, offset) {
