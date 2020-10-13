@@ -25,6 +25,7 @@ Hooks.on("init", () => {
       fidelity: 3,
       multiImageMode: "g",
       webpConversion: true,
+      wallsAroundFiles: true,
     }
   })
 
@@ -39,42 +40,6 @@ Hooks.on("init", () => {
 })
 
 
-
-let Uint8ToBase64 = function (u8Arr){
-  var CHUNK_SIZE = 0x8000; //arbitrary number
-  var index = 0;
-  var length = u8Arr.length;
-  var result = '';
-  var slice;
-  while (index < length) {
-    slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, length)); 
-    result += String.fromCharCode.apply(null, slice);
-    index += CHUNK_SIZE;
-  }
-  return btoa(result);
-}
-
-let image2Canvas = function(canvas, file){
-  return new Promise( function(resolve, reject){
-    var image = new Image();
-    image.addEventListener('load', function() {
-        canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
-        console.log(file.pos_in_image)
-        resolve(image)
-    });
-    image.src = "data:image/png;base64,"+file.image
-  });
-}
-
-let loadImg = function(buffer){
-  return new Promise( function(resolve, reject) {
-    let rawImage = new Image();
-    rawImage.addEventListener('load', function(){
-      resolve(rawImage)
-    })
-    rawImage.src='data:image/png;base64,'+Uint8ToBase64(buffer);
-  });
-}
 
 
 class DDImporter extends Application
@@ -124,6 +89,7 @@ class DDImporter extends Application
     }
     data.multiImageMode = settings.multiImageMode || "g";
     data.webpConversion = settings.webpConversion;
+    data.wallsAroundFiles = settings.wallsAroundFiles;
     return data
   }
 
@@ -134,10 +100,12 @@ class DDImporter extends Application
     DDImporter.checkPath(html)
     DDImporter.checkFidelity(html)
     DDImporter.checkSource(html)
+    DDImporter.checkExtension(html)
 
     html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
     html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
     html.find(".source-selector").change(ev => DDImporter.checkSource(html))
+    html.find('[name="extension"]').change(ev => DDImporter.checkExtension(html))
 
     html.find(".add-file").click(async ev => {
       var newfile = document.createElement("input");
@@ -149,6 +117,7 @@ class DDImporter extends Application
       counter.value = parseInt(counter.value) + 1
       let files = html.find("#dd-upload-files")[0]
       files.insertBefore(newfile,counter)
+      html.find(".multi-mode-section")[0].style.display = ""
     })
 
     html.find(".import-map").click(async ev => {
@@ -165,6 +134,7 @@ class DDImporter extends Application
         let filecount = html.find('[name="filecount"]').val()
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
+        let wallsAroundFiles =  html.find('[name="walls-around-files"]')[0].checked
         let selected_extension = extension
         var firstFileName
 
@@ -179,9 +149,11 @@ class DDImporter extends Application
         var fileName = 'combined'
         for (var i=0; i < filecount; i++){
           let fe = html.find("[name=file"+i+"]")
-          if (fe[0].files[0] === undefined)
+          if (fe[0].files[0] === undefined){
+            console.log("SKIPPING")
             continue
-          files[i] = JSON.parse(await fe[0].files[0].text());
+          }
+          files.push(JSON.parse(await fe[0].files[0].text()));
           fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
           if(files.length == 1){
             firstFileName = fe[0].files[0].name.split(".")[0]
@@ -197,6 +169,8 @@ class DDImporter extends Application
           sceneName = firstFileName
         }
 
+
+        // do the placement math
         let size = {}
         size.x = files[0].resolution.map_size.x
         size.y = files[0].resolution.map_size.y
@@ -209,18 +183,14 @@ class DDImporter extends Application
         // respect the stitching mode
         if (mode == 'y'){
           // vertical stitching
-          width = size.x
-          height = count * size.y
+          gridw = grid_size.x
+          gridh = count * grid_size.y
           for (var f=0; f < files.length; f++){
             files[f].pos_in_image = {"x": 0, "y": f * size.y}
             files[f].pos_in_grid = {"x": 0, "y": f * grid_size.y}
           }
-          gridw = grid_size.x
-          gridh = count * grid_size.y
         }else if( mode == 'x'){
           // horizontal stitching
-          width = count * size.x
-          height = size.y
           for (var f=0; f < files.length; f++){
             files[f].pos_in_image = {"y": 0, "x": f * size.x}
             files[f].pos_in_grid = {"y": 0, "x": f * grid_size.x}
@@ -229,7 +199,6 @@ class DDImporter extends Application
           gridh = grid_size.y
         }else if( mode == 'g'){
           // grid is the most complicated one
-          width = Math.ceil(Math.sqrt(count)) * size.x
           // we count the rows, as we fill them up first, e.g. 5 images will end up in 2 rows, the first with 3 the second with two images.
           var vcount = 0
           var hcount = count
@@ -247,31 +216,43 @@ class DDImporter extends Application
             hcount -= hwidth
             vcount += 1
           }
-          height = vcount * size.y
           gridw = hwidth * grid_size.x
           gridh = vcount * grid_size.y
         }
-        let thecanvas = document.createElement('canvas');
-        thecanvas.width = width;
-        thecanvas.height = height;
-        let mycanvas = thecanvas.getContext("2d");
-        ui.notifications.notify("Processing Images")
-        for (var fidx=0; fidx < files.length; fidx++){
-          ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
-          let f = files[fidx];
-          await image2Canvas(mycanvas, f)
-        }
-        ui.notifications.notify("Uploading image ....")
+        width = gridw * files[0].resolution.pixels_per_grid
+        height = gridh * files[0].resolution.pixels_per_grid
+        //placement math done.
+        //Now use the image direct, in case of only one image and no conversion required
+        if ((selected_extension == 'webp' || !toWebp) && files.length == 1){
+          let bfr = DDImporter.DecodeImage(files[0])
+          ui.notifications.notify("Uploading image ....")
+          DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
+        }else{
+          // Use a canvas to place the image in case we need to convert something
+          let thecanvas = document.createElement('canvas');
+          thecanvas.width = width;
+          thecanvas.height = height;
+          let mycanvas = thecanvas.getContext("2d");
+          ui.notifications.notify("Processing Images")
+          for (var fidx=0; fidx < files.length; fidx++){
+            ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
+            let f = files[fidx];
+            await DDImporter.image2Canvas(mycanvas, f, selected_extension)
+          }
+          ui.notifications.notify("Uploading image ....")
 
-        var p = new Promise(function(resolve, reject) {
-          thecanvas.toBlob(function (blob) {
-            blob.arrayBuffer().then(bfr => {
-              DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
-                .then(function(){
-                  resolve()
+          var p = new Promise(function(resolve) {
+            thecanvas.toBlob(function (blob) {
+              blob.arrayBuffer().then(bfr => {
+                DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
+                  .then(function(){
+                    resolve()
+                })
               })
-            })
-          }, "image/"+extension);})
+            }, "image/"+extension);})
+        }
+
+        // aggregate the walls and place them right
         let aggregated = {
           "format": 0.2,
           "resolution": {
@@ -308,6 +289,7 @@ class DDImporter extends Application
 
           aggregated.line_of_sight = aggregated.line_of_sight.concat(f.line_of_sight)
           //Add wall around the image
+          if (wallsAroundFiles && files.length > 1){
           aggregated.line_of_sight.push(
             [
               {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y},
@@ -316,11 +298,13 @@ class DDImporter extends Application
               {'x':f.pos_in_grid.x , 'y': f.pos_in_grid.y + f.resolution.map_size.y},
               {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y}
             ])
+          }
           aggregated.lights = aggregated.lights.concat(f.lights)
           aggregated.portals = aggregated.portals.concat(f.portals)
         }
-        ui.notifications.notify("creating scene")
+        ui.notifications.notify("upload still in progress, please wait")
         await p
+        ui.notifications.notify("creating scene")
         DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
        
         game.settings.set("dd-import", "importSettings", {
@@ -333,6 +317,7 @@ class DDImporter extends Application
           fidelity: fidelity,
           multiImageMode: mode,
           webpConversion: toWebp,
+          wallsAroundFiles: wallsAroundFiles,
         });
       }
       catch (e)
@@ -352,6 +337,18 @@ class DDImporter extends Application
     }
     else
       html.find(".warning.path")[0].style.display = "none"
+  }
+
+  static checkExtension(html)
+  {
+    let extensionValue = $("[name='extension']")[0].value
+    if (extensionValue == "webp")
+    {
+      html.find(".convert-section")[0].style.display = "none"
+    }
+    else{
+      html.find(".convert-section")[0].style.display = ""
+    }
   }
 
   static checkFidelity(html)
@@ -392,8 +389,33 @@ class DDImporter extends Application
     return ab;
   }
 
-  static async uploadFile(file, name, path, source, extension, bucket) {
+  static Uint8ToBase64(u8Arr){
+    var CHUNK_SIZE = 0x8000;
+    var index = 0;
+    var length = u8Arr.length;
+    var result = '';
+    var slice;
+    // we need to do slices for large amount of data
+    while (index < length) {
+      slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, length)); 
+      result += String.fromCharCode.apply(null, slice);
+      index += CHUNK_SIZE;
+    }
+    return btoa(result);
+  }
 
+  static image2Canvas(canvas, file, extension){
+    return new Promise( function(resolve){
+      var image = new Image();
+      image.addEventListener('load', function() {
+          canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+          resolve()
+      });
+      image.src = "data:image/"+extension+";base64,"+file.image
+    });
+  }
+
+  static async uploadFile(file, name, path, source, extension, bucket) {
     let uploadFile = new File([file], name + "." + extension, { type: 'image/' + extension });
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }

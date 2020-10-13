@@ -14,7 +14,7 @@
     </select>
   </div>
   <div class="form-group import">
-    <label class="import-options">Image Extension</label>
+    <label class="import-options">Image Type/Extension</label>
     <select name="extension">
       {{#select defaultExtension}}
       {{#each imgExtensions as |label key|}}
@@ -22,8 +22,9 @@
       {{/each}}
       {{/select}}
     </select>
-    <br />
-    <label class="import-options">convert to webp</label>
+  </div>
+  <div class="form-group import convert-section" style="display: none" title="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
+    <label class="import-options">convert to webp <i class="far fa-question-circle"></i></label>
     <input type="checkbox" name="convert-to-webp" {{#if webpConversion}}checked{{/if}}>
   </div>
 
@@ -48,18 +49,22 @@
     <label class="import-options">Upload .dd2vtt</label>
   </div>
   <div class="form-group import" id="dd-upload-files">
-    <label class="import-options">Multifile does not work with webp</label><br/>
-    <label class="import-options">MultiImageMode</label>
-    <select name="multi-mode">
-      {{#select multiImageMode}}
-      {{#each multiImageModes as |label key|}}
-      <option value="{{key}}">{{label}}</option>
-      {{/each}}
-      {{/select}}
-    </select>
     <button type="button" class="add-file">Add another file</button>
     <input class="file-input" type='file' name='file0' accept=".dd2vtt" />
     <input class="hidden-input" type='hidden' value="1" name="filecount" />
+    <div class="multi-mode-section" style="display: none">
+      <label class="import-options">Add walls around single files</label>
+      <input type="checkbox" name="walls-around-files" {{#if wallsAroundFiles}}checked{{/if}}>
+      <br />
+      <label class="import-options">Layout Mode</label>
+      <select name="multi-mode">
+        {{#select multiImageMode}}
+        {{#each multiImageModes as |label key|}}
+        <option value="{{key}}">{{label}}</option>
+        {{/each}}
+        {{/select}}
+      </select>
+    </div>
   </div>
   <div>
     <hr />
