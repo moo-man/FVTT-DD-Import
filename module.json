@@ -5,8 +5,7 @@
   "version": "1.0",
   "author": "Moo Man, m42e, jacquie",
   "scripts": [
-    "./ddimport.js",
-    "./jimp.js"
+    "./ddimport.js"
   ],
   "styles": [
     "./styles.css"

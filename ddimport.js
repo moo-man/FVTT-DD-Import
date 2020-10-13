@@ -54,32 +54,28 @@ let Uint8ToBase64 = function (u8Arr){
   return btoa(result);
 }
 
+let image2Canvas = function(canvas, file){
+  return new Promise( function(resolve, reject){
+    var image = new Image();
+    image.addEventListener('load', function() {
+        canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+        console.log(file.pos_in_image)
+        resolve(image)
+    });
+    image.src = "data:image/png;base64,"+file.image
+  });
+}
+
 let loadImg = function(buffer){
   return new Promise( function(resolve, reject) {
     let rawImage = new Image();
     rawImage.addEventListener('load', function(){
-      setTimeout(function(){
-        resolve(rawImage)
-      }, 200)
+      resolve(rawImage)
     })
     rawImage.src='data:image/png;base64,'+Uint8ToBase64(buffer);
   });
 }
 
-let convertToWebP = function (rawImage) {
-  return new Promise(function (resolve, reject) {
-    let canvas = document.createElement('canvas');
-
-    canvas.width = rawImage.width;
-    canvas.height = rawImage.height;
-    let ctx = canvas.getContext("2d");
-    ctx.drawImage(rawImage, 0, 0);
-
-    canvas.toBlob(function (blob) {
-      resolve(blob.arrayBuffer());
-    }, "image/webp");
-  });
-}
 
 class DDImporter extends Application
 {
@@ -158,8 +154,7 @@ class DDImporter extends Application
     html.find(".import-map").click(async ev => {
       try 
       {
-        let fileName = html.find(".file-input")[0].files[0].name.split(".")[0];
-        let sceneName = html.find('[name="sceneName"]').val() || fileName
+        let sceneName = html.find('[name="sceneName"]').val()
         let fidelity = parseInt(html.find('[name="fidelity"]').val())
         let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
         let source = html.find('[name="source"]').val()
@@ -171,143 +166,163 @@ class DDImporter extends Application
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
         let selected_extension = extension
+        var firstFileName
 
         if ((!bucket || !region) && source == "s3")
           return ui.notifications.error("Bucket and Region required for S3 upload")
 
         if(toWebp){
-          
           extension = 'webp'
         }
         this.close();
-        if (filecount == 1){
-          let file = JSON.parse(await html.find(".file-input")[0].files[0].text());
-          ui.notifications.notify("Uploading...")
-          await DDImporter.uploadFile(file, fileName, path, source, extension, bucket, toWebp)
-          DDImporter.DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
-        }else{
-          let files = []
-          fileName = 'combined'
-          for (var i=0; i < filecount; i++){
-            let fe = html.find("[name=file"+i+"]")
-            files[i] = JSON.parse(await fe[0].files[0].text());
-            fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+        let files = []
+        var fileName = 'combined'
+        for (var i=0; i < filecount; i++){
+          let fe = html.find("[name=file"+i+"]")
+          if (fe[0].files[0] === undefined)
+            continue
+          files[i] = JSON.parse(await fe[0].files[0].text());
+          fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+          if(files.length == 1){
+            firstFileName = fe[0].files[0].name.split(".")[0]
           }
-          let size = {}
-          size.x = files[0].resolution.map_size.x
-          size.y = files[0].resolution.map_size.y
-          let grid_size = { 'x': size.x, 'y': size.y }
-          size.x = size.x * files[0].resolution.pixels_per_grid
-          size.y = size.y * files[0].resolution.pixels_per_grid
-
-          let count = files.length
-          var width, height, gridw, gridh
-          // respect the stitching mode
-          if (mode == 'y'){
-            // vertical stitching
-            width = size.x
-            height = count * size.y
-            for (var f=0; f < files.length; f++){
-              files[f].pos_in_image = {"x": 0, "y": f * size.y}
-              files[f].pos_in_grid = {"x": 0, "y": f * grid_size.y}
-            }
-            gridw = grid_size.x
-            gridh = count * grid_size.y
-          }else if( mode == 'x'){
-            // horizontal stitching
-            width = count * size.x
-            height = size.y
-            for (var f=0; f < files.length; f++){
-              files[f].pos_in_image = {"y": 0, "x": f * size.x}
-              files[f].pos_in_grid = {"y": 0, "x": f * grid_size.x}
-            }
-            gridw = count * grid_size.x
-            gridh = grid_size.y
-          }else if( mode == 'g'){
-            // grid is the most complicated one
-            width = Math.ceil(Math.sqrt(count)) * size.x
-            // we count the rows, as we fill them up first, e.g. 5 images will end up in 2 rows, the first with 3 the second with two images.
-            var vcount = 0
-            var hcount = count
-            var index = 0
-            let hwidth = Math.ceil(Math.sqrt(count))
-            // continue as there are images left
-            while (hcount > 0){
-              var next_v_index = index + hwidth
-              // fill up each row, until all images are placed
-              while (index < Math.min(next_v_index, files.length)){
-                files[index].pos_in_image = { "y": vcount * size.y, "x": (index - vcount * hwidth) * size.x }
-                files[index].pos_in_grid = { "y": vcount * grid_size.y, "x": (index - vcount * hwidth) * grid_size.x }
-                index += 1
-              }
-              hcount -= hwidth
-              vcount += 1
-            }
-            height = vcount * size.y
-            gridw = hwidth * grid_size.x
-            gridh = vcount * grid_size.y
-          }
-          var mycanvas = await new Jimp(width, height, 0xffffff00);
-          ui.notifications.notify("Combining Images")
-          for (var fidx=0; fidx < files.length; fidx++){
-            let f = files[fidx];
-            let ab = DDImporter.DecodeImage(f)
-            let srcImg = await Jimp.read(ab)
-            await mycanvas.blit(srcImg, f.pos_in_image.x, f.pos_in_image.y, 0, 0, size.x, size.y)
-          }
-          ui.notifications.notify("Uploading image ....")
-          let bfr = await mycanvas.getBufferAsync(Jimp.MIME_PNG); 
-          await DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket, toWebp)
-          let aggregated = {
-            "format": 0.2,
-            "resolution": {
-              "map_origin": {"x": 0, "y": 0},
-              "map_size": {"x": gridw, "y": gridh},
-              "pixels_per_grid": files[0]["resolution"]["pixels_per_grid"],
-            },
-            "line_of_sight": [],
-            "portals": [],
-            "environment": files[0]["environment"],
-            "lights": [],
-          }
-          // adapt the walls
-          for (var fidx=0; fidx < files.length; fidx++){
-            let f = files[fidx];
-            f.line_of_sight.forEach(function(los){
-              los.forEach(function(z){
-                z.x += f.pos_in_grid.x
-                z.y += f.pos_in_grid.y
-              })
-            })
-            f.portals.forEach(function(port){
-              port.position.x += f.pos_in_grid.x
-              port.position.y += f.pos_in_grid.y
-              port.bounds.forEach(function(z){
-                z.x += f.pos_in_grid.x
-                z.y += f.pos_in_grid.y
-              })
-            })
-            f.lights.forEach(function(port){
-              port.position.x += f.pos_in_grid.x
-              port.position.y += f.pos_in_grid.y
-            })
-
-            aggregated.line_of_sight = aggregated.line_of_sight.concat(f.line_of_sight)
-            //Add wall around the image
-            aggregated.line_of_sight.push(
-              [
-                {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y},
-                {'x':f.pos_in_grid.x + f.resolution.map_size.x, 'y': f.pos_in_grid.y},
-                {'x':f.pos_in_grid.x + f.resolution.map_size.x, 'y': f.pos_in_grid.y + f.resolution.map_size.y},
-                {'x':f.pos_in_grid.x , 'y': f.pos_in_grid.y + f.resolution.map_size.y},
-                {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y}
-              ])
-            aggregated.lights = aggregated.lights.concat(f.lights)
-            aggregated.portals = aggregated.portals.concat(f.portals)
-          }
-          ui.notifications.notify("creating scene")
-          DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
         }
+        if (files.length == 1){
+          fileName = firstFileName;
+        }else{
+          ui.notifications.notify("Combining images may take quite some time, be patient")
+        }
+
+        if (sceneName == ''){
+          sceneName = firstFileName
+        }
+
+        let size = {}
+        size.x = files[0].resolution.map_size.x
+        size.y = files[0].resolution.map_size.y
+        let grid_size = { 'x': size.x, 'y': size.y }
+        size.x = size.x * files[0].resolution.pixels_per_grid
+        size.y = size.y * files[0].resolution.pixels_per_grid
+
+        let count = files.length
+        var width, height, gridw, gridh
+        // respect the stitching mode
+        if (mode == 'y'){
+          // vertical stitching
+          width = size.x
+          height = count * size.y
+          for (var f=0; f < files.length; f++){
+            files[f].pos_in_image = {"x": 0, "y": f * size.y}
+            files[f].pos_in_grid = {"x": 0, "y": f * grid_size.y}
+          }
+          gridw = grid_size.x
+          gridh = count * grid_size.y
+        }else if( mode == 'x'){
+          // horizontal stitching
+          width = count * size.x
+          height = size.y
+          for (var f=0; f < files.length; f++){
+            files[f].pos_in_image = {"y": 0, "x": f * size.x}
+            files[f].pos_in_grid = {"y": 0, "x": f * grid_size.x}
+          }
+          gridw = count * grid_size.x
+          gridh = grid_size.y
+        }else if( mode == 'g'){
+          // grid is the most complicated one
+          width = Math.ceil(Math.sqrt(count)) * size.x
+          // we count the rows, as we fill them up first, e.g. 5 images will end up in 2 rows, the first with 3 the second with two images.
+          var vcount = 0
+          var hcount = count
+          var index = 0
+          let hwidth = Math.ceil(Math.sqrt(count))
+          // continue as there are images left
+          while (hcount > 0){
+            var next_v_index = index + hwidth
+            // fill up each row, until all images are placed
+            while (index < Math.min(next_v_index, files.length)){
+              files[index].pos_in_image = { "y": vcount * size.y, "x": (index - vcount * hwidth) * size.x }
+              files[index].pos_in_grid = { "y": vcount * grid_size.y, "x": (index - vcount * hwidth) * grid_size.x }
+              index += 1
+            }
+            hcount -= hwidth
+            vcount += 1
+          }
+          height = vcount * size.y
+          gridw = hwidth * grid_size.x
+          gridh = vcount * grid_size.y
+        }
+        let thecanvas = document.createElement('canvas');
+        thecanvas.width = width;
+        thecanvas.height = height;
+        let mycanvas = thecanvas.getContext("2d");
+        ui.notifications.notify("Processing Images")
+        for (var fidx=0; fidx < files.length; fidx++){
+          ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
+          let f = files[fidx];
+          await image2Canvas(mycanvas, f)
+        }
+        ui.notifications.notify("Uploading image ....")
+
+        var p = new Promise(function(resolve, reject) {
+          thecanvas.toBlob(function (blob) {
+            blob.arrayBuffer().then(bfr => {
+              DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
+                .then(function(){
+                  resolve()
+              })
+            })
+          }, "image/"+extension);})
+        let aggregated = {
+          "format": 0.2,
+          "resolution": {
+            "map_origin": {"x": 0, "y": 0},
+            "map_size": {"x": gridw, "y": gridh},
+            "pixels_per_grid": files[0]["resolution"]["pixels_per_grid"],
+          },
+          "line_of_sight": [],
+          "portals": [],
+          "environment": files[0]["environment"],
+          "lights": [],
+        }
+        // adapt the walls
+        for (var fidx=0; fidx < files.length; fidx++){
+          let f = files[fidx];
+          f.line_of_sight.forEach(function(los){
+            los.forEach(function(z){
+              z.x += f.pos_in_grid.x
+              z.y += f.pos_in_grid.y
+            })
+          })
+          f.portals.forEach(function(port){
+            port.position.x += f.pos_in_grid.x
+            port.position.y += f.pos_in_grid.y
+            port.bounds.forEach(function(z){
+              z.x += f.pos_in_grid.x
+              z.y += f.pos_in_grid.y
+            })
+          })
+          f.lights.forEach(function(port){
+            port.position.x += f.pos_in_grid.x
+            port.position.y += f.pos_in_grid.y
+          })
+
+          aggregated.line_of_sight = aggregated.line_of_sight.concat(f.line_of_sight)
+          //Add wall around the image
+          aggregated.line_of_sight.push(
+            [
+              {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y},
+              {'x':f.pos_in_grid.x + f.resolution.map_size.x, 'y': f.pos_in_grid.y},
+              {'x':f.pos_in_grid.x + f.resolution.map_size.x, 'y': f.pos_in_grid.y + f.resolution.map_size.y},
+              {'x':f.pos_in_grid.x , 'y': f.pos_in_grid.y + f.resolution.map_size.y},
+              {'x':f.pos_in_grid.x, 'y': f.pos_in_grid.y}
+            ])
+          aggregated.lights = aggregated.lights.concat(f.lights)
+          aggregated.portals = aggregated.portals.concat(f.portals)
+        }
+        ui.notifications.notify("creating scene")
+        await p
+        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
+       
         game.settings.set("dd-import", "importSettings", {
           source: source,
           extension: selected_extension,
@@ -377,27 +392,9 @@ class DDImporter extends Application
     return ab;
   }
 
-  static async uploadFile(file, name, path, source, extension, bucket, toWebp) {
-    var ab, ia;
+  static async uploadFile(file, name, path, source, extension, bucket) {
 
-    if (file instanceof Uint8Array){
-      ab = new ArrayBuffer(file.length)
-      ia = new Uint8Array(ab);
-      for (var i = 0; i < file.length; i++) {
-        ia[i] = file[i];
-      }
-    } else{
-      ab = this.DecodeImage(file)
-      ia = new Uint8Array(ab);
-    }
-
-    if(toWebp){
-      let rawImage = await loadImg(ia);
-      ab = await convertToWebP(rawImage)
-      extension = 'webp'
-    }
-
-    let uploadFile = new File([ab], name + "." + extension, { type: 'image/' + extension });
+    let uploadFile = new File([file], name + "." + extension, { type: 'image/' + extension });
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
 
