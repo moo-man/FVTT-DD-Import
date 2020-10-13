@@ -58,7 +58,9 @@ let loadImg = function(buffer){
   return new Promise( function(resolve, reject) {
     let rawImage = new Image();
     rawImage.addEventListener('load', function(){
-      resolve(rawImage)
+      setTimeout(function(){
+        resolve(rawImage)
+      }, 200)
     })
     rawImage.src='data:image/png;base64,'+Uint8ToBase64(buffer);
   });
