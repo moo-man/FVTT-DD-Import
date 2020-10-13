@@ -168,10 +168,15 @@ class DDImporter extends Application
         let filecount = html.find('[name="filecount"]').val()
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
+        let selected_extension = extension
 
         if ((!bucket || !region) && source == "s3")
           return ui.notifications.error("Bucket and Region required for S3 upload")
 
+        if(toWebp){
+          
+          extension = 'webp'
+        }
         this.close();
         if (filecount == 1){
           let file = JSON.parse(await html.find(".file-input")[0].files[0].text());
@@ -303,7 +308,7 @@ class DDImporter extends Application
         }
         game.settings.set("dd-import", "importSettings", {
           source: source,
-          extension: extension,
+          extension: selected_extension,
           bucket: bucket,
           region: region,
           path: path,
