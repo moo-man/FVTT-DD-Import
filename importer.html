@@ -24,7 +24,7 @@
     </select>
     <br />
     <label class="import-options">convert to webp</label>
-    <input type="checkbox" name="convert-to-webp" checked>
+    <input type="checkbox" name="convert-to-webp" {{#if webpConversion}}checked{{/if}}>
   </div>
 
   <div class="form-group import" title="This is where the image is uploaded. Your path should be relative to your User Data folder. e.g. worlds/yourworld/maps">
@@ -51,9 +51,11 @@
     <label class="import-options">Multifile does not work with webp</label><br/>
     <label class="import-options">MultiImageMode</label>
     <select name="multi-mode">
-      <option value="g">Grid</option>
-      <option value="y">Vertical</option>
-      <option value="x">Horizontal</option>
+      {{#select multiImageMode}}
+      {{#each multiImageModes as |label key|}}
+      <option value="{{key}}">{{label}}</option>
+      {{/each}}
+      {{/select}}
     </select>
     <button type="button" class="add-file">Add another file</button>
     <input class="file-input" type='file' name='file0' accept=".dd2vtt" />
