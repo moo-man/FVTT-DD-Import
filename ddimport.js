@@ -135,6 +135,7 @@ class DDImporter extends Application
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
         let wallsAroundFiles =  html.find('[name="walls-around-files"]')[0].checked
+        let imageFileName = html.find('[name="imageFileName"]').val()
         let selected_extension = extension
         var firstFileName
 
@@ -155,20 +156,25 @@ class DDImporter extends Application
           }
           files.push(JSON.parse(await fe[0].files[0].text()));
           fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+          // save the first filename
           if(files.length == 1){
             firstFileName = fe[0].files[0].name.split(".")[0]
           }
         }
+        // keep the original filename if it is only one file at all
         if (files.length == 1){
           fileName = firstFileName;
         }else{
           ui.notifications.notify("Combining images may take quite some time, be patient")
         }
-
+        if (imageFileName){
+          fileName = imageFileName
+          firstFileName = imageFileName
+        }
+        // lets use the first filename for the scene
         if (sceneName == ''){
           sceneName = firstFileName
         }
-
 
         // do the placement math
         let size = {}
