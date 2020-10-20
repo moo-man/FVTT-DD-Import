@@ -437,17 +437,24 @@ class DDImporter extends Application
     if (source === "s3") {
       imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
-    let newScene = await Scene.create({
+    let newScene = new Scene({
       name: sceneName,
       grid: file.resolution.pixels_per_grid,
       img: imagePath,
       width: file.resolution.pixels_per_grid * file.resolution.map_size.x,
-      height: file.resolution.pixels_per_grid * file.resolution.map_size.y
+      height: file.resolution.pixels_per_grid * file.resolution.map_size.y,
+      padding: 0,
+      shiftX : 0,
+      shiftY : 0
     })
     let walls = this.GetWalls(file, newScene, 6 - fidelity, offset)
     let doors = this.GetDoors(file, newScene, offset)
     let lights = this.GetLights(file, newScene);
-    newScene.update({walls: walls.concat(doors), lights: lights, width: file.resolution.pixels_per_grid * file.resolution.map_size.x, height: file.resolution.pixels_per_grid * file.resolution.map_size.y, img: imagePath})
+    mergeObject(newScene.data, {walls: walls.concat(doors), lights: lights})
+    let scene = await Scene.create(newScene.data);
+    scene.createThumbnail().then(thumb => {
+      scene.update({"thumb" :  thumb.thumb});
+    })
   }
 
   static GetWalls(file, scene, skipNum, offset) {
