@@ -1,11 +1,11 @@
 Hooks.on("renderSidebarTab", async (app, html) => {
   if (app.options.id == "scenes") {
-    let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> Dungeondraft Import</button>")
- 
+    let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> Universal Battlemap Import</button>")
+
     button.click(function () {
       new DDImporter().render(true);
     });
-    
+
     html.find(".directory-footer").append(button);
   }
 })
@@ -56,7 +56,7 @@ class DDImporter extends Application
       options.height = "auto";
       options.width = 400;
       options.minimizable = true;
-      options.title = "Dungeondraft Importer"
+      options.title = "Universal Battlemap Importer"
       return options;
   }
 
@@ -112,7 +112,7 @@ class DDImporter extends Application
       let counter = html.find('[name="filecount"]')[0]
       newfile.setAttribute("class", "file-input")
       newfile.setAttribute("type", "file")
-      newfile.setAttribute("accept", ".dd2vtt")
+      newfile.setAttribute("accept", ".dd2vtt,.df2vtt,.uvtt")
       newfile.setAttribute("name", "file"+counter.value)
       counter.value = parseInt(counter.value) + 1
       let files = html.find("#dd-upload-files")[0]
@@ -121,7 +121,7 @@ class DDImporter extends Application
     })
 
     html.find(".import-map").click(async ev => {
-      try 
+      try
       {
         let sceneName = html.find('[name="sceneName"]').val()
         let fidelity = parseInt(html.find('[name="fidelity"]').val())
@@ -312,7 +312,7 @@ class DDImporter extends Application
         await p
         ui.notifications.notify("creating scene")
         DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
-       
+
         game.settings.set("dd-import", "importSettings", {
           source: source,
           extension: selected_extension,
@@ -358,7 +358,7 @@ class DDImporter extends Application
   }
 
   static checkFidelity(html)
-  {  
+  {
     let fidelityValue= $("[name='fidelity']")[0].value
     if (Number(fidelityValue) > 1)
     {
@@ -403,7 +403,7 @@ class DDImporter extends Application
     var slice;
     // we need to do slices for large amount of data
     while (index < length) {
-      slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, length)); 
+      slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, length));
       result += String.fromCharCode.apply(null, slice);
       index += CHUNK_SIZE;
     }
@@ -431,7 +431,7 @@ class DDImporter extends Application
       path = path + "/"
     if (path && path[0] != "/")
       path = "/" + path
-    if (!path) 
+    if (!path)
       path = "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {

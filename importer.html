@@ -46,11 +46,11 @@
     Higher Fidelity creates a very large amount of cave walls. Recommended to stay at the minimum.
   </div>
   <div class="form-group import">
-    <label class="import-options">Upload .dd2vtt</label>
+    <label class="import-options">Upload Universal VTT (.dd2vtt, .df2vtt, .uvtt)</label>
   </div>
   <div class="form-group import" id="dd-upload-files">
     <button type="button" class="add-file">Add another file</button>
-    <input class="file-input" type='file' name='file0' accept=".dd2vtt" />
+    <input class="file-input" type='file' name='file0' accept=".dd2vtt,.df2vtt,.uvtt" />
     <input class="hidden-input" type='hidden' value="1" name="filecount" />
     <div class="multi-mode-section" style="display: none">
       <label class="import-options">Add walls around single files</label>
@@ -81,7 +81,7 @@
       <div class="form-group import">
         <label class="import-options">Region Name for S3 Storage</label><input type='text' name="region" value="{{region}}" />
       </div>
-    </div> 
+    </div>
   </div>
 
   <button type="submit" class="import-map">Import</button>
