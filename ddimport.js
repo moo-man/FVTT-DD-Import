@@ -664,7 +664,7 @@ class DDImporter extends Application
         bright: light.range * 2,
         angle: 360,
         tintColor: "#" + light.color.substring(2),
-        tintAlpha: (0.2 * light.intensity)
+        tintAlpha: (0.05 * light.intensity)
       })
       lights.push(newLight.data);
     }
