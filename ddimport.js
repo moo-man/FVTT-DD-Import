@@ -162,14 +162,26 @@ class DDImporter extends Application
             console.log("SKIPPING")
             continue
           }
-          files.push(JSON.parse(await fe[0].files[0].text()));
-          fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
-          // save the first filename
-          if(files.length == 1){
-            firstFileName = fe[0].files[0].name.split(".")[0]
+          try {
+            files.push(JSON.parse(await fe[0].files[0].text()));
+            fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+            // save the first filename
+            if(files.length == 1){
+              firstFileName = fe[0].files[0].name.split(".")[0]
+            }
+          }catch(e){
+            if (filecount > 1){
+              ui.notifications.warning("Skipping due to error while importing: " + fe[0].files[0].name + " " + e)
+            }else{
+              throw(e)
+            }
           }
         }
         // keep the original filename if it is only one file at all
+        if (files.length == 0){
+          ui.notifications.error("Skipped all files while importing.")
+          throw new Error("Skipped all files");
+        }
         if (files.length == 1){
           fileName = firstFileName;
         }else{
