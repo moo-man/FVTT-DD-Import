@@ -605,6 +605,9 @@ class DDImporter extends Application
      * x = (m2-m1)/(k1-k2)
      * y = k1*x + m1
      */
+    if(wallinfo1.slope == undefined && wallinfo2.slope == undefined){
+      return { x: wallinfo1.x, y: (wallinfo1.y + wallinfo2.y)/2 }
+    }
     if (wallinfo1.slope == undefined) {
       let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
       return { x: wallinfo1.x, y: wallinfo2.slope * wallinfo1.x + m2 }
