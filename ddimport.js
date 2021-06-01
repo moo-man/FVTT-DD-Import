@@ -162,14 +162,26 @@ class DDImporter extends Application
             console.log("SKIPPING")
             continue
           }
-          files.push(JSON.parse(await fe[0].files[0].text()));
-          fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
-          // save the first filename
-          if(files.length == 1){
-            firstFileName = fe[0].files[0].name.split(".")[0]
+          try {
+            files.push(JSON.parse(await fe[0].files[0].text()));
+            fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+            // save the first filename
+            if(files.length == 1){
+              firstFileName = fe[0].files[0].name.split(".")[0]
+            }
+          }catch(e){
+            if (filecount > 1){
+              ui.notifications.warning("Skipping due to error while importing: " + fe[0].files[0].name + " " + e)
+            }else{
+              throw(e)
+            }
           }
         }
         // keep the original filename if it is only one file at all
+        if (files.length == 0){
+          ui.notifications.error("Skipped all files while importing.")
+          throw new Error("Skipped all files");
+        }
         if (files.length == 1){
           fileName = firstFileName;
         }else{
@@ -622,6 +634,9 @@ class DDImporter extends Application
      * x = (m2-m1)/(k1-k2)
      * y = k1*x + m1
      */
+    if(wallinfo1.slope == undefined && wallinfo2.slope == undefined){
+      return { x: wallinfo1.x, y: (wallinfo1.y + wallinfo2.y)/2 }
+    }
     if (wallinfo1.slope == undefined) {
       let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
       return { x: wallinfo1.x, y: wallinfo2.slope * wallinfo1.x + m2 }
