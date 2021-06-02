@@ -673,7 +673,7 @@ class DDImporter extends Application
           (door.bounds[1].x * file.resolution.pixels_per_grid) + offsetX,
           (door.bounds[1].y * file.resolution.pixels_per_grid) + offsetY
         ],
-        door: game.settings.get("dd-import", "openableWindows") ? true : door.closed, // If openable windows - all portals should be doors, otherwise, only portals that "block light" should be openable (doors)
+        door: game.settings.get("dd-import", "openableWindows") ?  1 : (door.closed ? 1 : 0), // If openable windows - all portals should be doors, otherwise, only portals that "block light" should be openable (doors)
         sense: (door.closed) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
       }))
     }
