@@ -429,12 +429,12 @@ class DDImporter extends Application
   static async DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source) {
     if (path && path[path.length-1] != "/")
       path = path + "/"
-    if (path && path[0] != "/")
-      path = "/" + path
-    if (!path)
-      path = "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
+      if (path && path[0] != "/")
+        path = "/" + path
+      if (!path)
+        path = "/"
       imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
     let newScene = new Scene({
