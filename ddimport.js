@@ -81,6 +81,7 @@ class DDImporter extends Application
     data.s3Region = settings.region || "";
     data.path = settings.path || "";
     data.offset = settings.offset || 0;
+    data.forceOffset = settings.forceOffset || false;
 
     data.multiImageModes = {
       "g": "Grid",
@@ -126,6 +127,7 @@ class DDImporter extends Application
         let sceneName = html.find('[name="sceneName"]').val()
         let fidelity = parseInt(html.find('[name="fidelity"]').val())
         let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
+        let forceOffset =  html.find('[name="force-offset"]')[0].checked
         let source = html.find('[name="source"]').val()
         let extension = html.find('[name="extension"]').val()
         let bucket = html.find('[name="bucket"]').val()
@@ -311,7 +313,7 @@ class DDImporter extends Application
         ui.notifications.notify("upload still in progress, please wait")
         await p
         ui.notifications.notify("creating scene")
-        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source)
+        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, forceOffset, extension, bucket, region, source)
 
         game.settings.set("dd-import", "importSettings", {
           source: source,
@@ -324,6 +326,7 @@ class DDImporter extends Application
           multiImageMode: mode,
           webpConversion: toWebp,
           wallsAroundFiles: wallsAroundFiles,
+          forceOffset: forceOffset,
         });
       }
       catch (e)
@@ -426,7 +429,7 @@ class DDImporter extends Application
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, extension, bucket, region, source) {
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset, forceOffset, extension, bucket, region, source) {
     if (path && path[path.length-1] != "/")
       path = path + "/"
     if (path && path[0] != "/")
@@ -447,8 +450,8 @@ class DDImporter extends Application
       shiftX : 0,
       shiftY : 0
     })
-    let walls = this.GetWalls(file, newScene, 6 - fidelity, offset)
-    let doors = this.GetDoors(file, newScene, offset)
+    let walls = this.GetWalls(file, newScene, 6 - fidelity, offset, forceOffset)
+    let doors = this.GetDoors(file, newScene, offset, forceOffset)
     let lights = this.GetLights(file, newScene);
     mergeObject(newScene.data, {walls: walls.concat(doors), lights: lights})
     let scene = await Scene.create(newScene.data);
@@ -457,7 +460,7 @@ class DDImporter extends Application
     })
   }
 
-  static GetWalls(file, scene, skipNum, offset) {
+  static GetWalls(file, scene, skipNum, offset, forceOffset) {
     let walls = [];
     let ddWalls = file.line_of_sight
 
@@ -476,7 +479,7 @@ class DDImporter extends Application
         }
       }
       if (offset != 0) {
-        wallSet = this.makeOffsetWalls(wallSet, offset)
+        wallSet = this.makeOffsetWalls(wallSet, offset, forceOffset)
       }
       wallSet = this.preprocessWalls(wallSet, skipNum)
       // Connect to walls that end *before* the current wall
@@ -533,12 +536,12 @@ class DDImporter extends Application
     return wallSet
   }
 
-  static makeOffsetWalls(wallSet, offset, shortWallThreshold = 0.3, shortWallAmountThreshold = 70) {
+  static makeOffsetWalls(wallSet, offset, forceOffset, shortWallThreshold = 0.3, shortWallAmountThreshold = 70) {
     let wallinfo = [];
     let shortWalls = this.GetShortWallCount(wallSet, shortWallThreshold);
     // Assume short wallsets or containing long walls are not caves.
     let shortWallAmount = Math.round((shortWalls / wallSet.length) * 100);
-    if (wallSet.length < 10 || shortWallAmount < shortWallAmountThreshold) {
+    if ((wallSet.length < 10 || shortWallAmount < shortWallAmountThreshold) && !forceOffset) {
       return wallSet
     }
     // connect the ends if they match
@@ -623,7 +626,7 @@ class DDImporter extends Application
     return Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2))
   }
 
-  static GetDoors(file, scene, offset) {
+  static GetDoors(file, scene, offset, forceOffset) {
     let doors = [];
     let ddDoors = file.portals;
     let sceneDimensions = Canvas.getDimensions(scene.data)
@@ -631,7 +634,7 @@ class DDImporter extends Application
     let offsetY = sceneDimensions.paddingY;
 
     if (offset != 0) {
-      ddDoors = this.makeOffsetWalls(ddDoors, offset)
+      ddDoors = this.makeOffsetWalls(ddDoors, offset, forceOffset)
     }
     for (let door of ddDoors) {
       doors.push(new Wall({

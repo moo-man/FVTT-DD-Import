@@ -73,6 +73,7 @@
     <div class="form-group import">
       <label class="import-options" title="Nudges the walls away from the edge. If you experience issues, leave at 0.">Offset <i class="far fa-question-circle"></i></label>
       <input type="number" min="-3" step="0.1" max="3" value="{{offset}}" name="offset">
+      <input type="checkbox" name="force-offset" {{#if forceOffset}}checked{{/if}}>
     </div>
     <div class="s3-section" style="display: none">
       <div class="form-group import">
