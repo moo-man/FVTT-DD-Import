@@ -431,10 +431,8 @@ class DDImporter extends Application
       path = path + "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
-      if (path && path[0] != "/")
-        path = "/" + path
-      if (!path)
-        path = "/"
+      if (imagePath[0] != "/")
+        imagePath = "/" + imagePath
       imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
     let newScene = new Scene({
