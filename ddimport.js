@@ -142,6 +142,7 @@ class DDImporter extends Application
         let filecount = html.find('[name="filecount"]').val()
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
+        let objectWalls =  html.find('[name="object-walls"]')[0].checked
         let wallsAroundFiles =  html.find('[name="walls-around-files"]')[0].checked
         let imageFileName = html.find('[name="imageFileName"]').val()
         let selected_extension = extension
@@ -291,9 +292,12 @@ class DDImporter extends Application
           "environment": files[0]["environment"],
           "lights": [],
         }
+
         // adapt the walls
         for (var fidx=0; fidx < files.length; fidx++){
           let f = files[fidx];
+          if (objectWalls)
+            f.line_of_sight = f.line_of_sight.concat(f.objects_line_of_sight)
           f.line_of_sight.forEach(function(los){
             los.forEach(function(z){
               z.x += f.pos_in_grid.x
