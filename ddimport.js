@@ -297,7 +297,7 @@ class DDImporter extends Application
         for (var fidx=0; fidx < files.length; fidx++){
           let f = files[fidx];
           if (objectWalls)
-            f.line_of_sight = f.line_of_sight.concat(f.objects_line_of_sight)
+            f.line_of_sight = f.line_of_sight.concat(f.objects_line_of_sight || [])
           f.line_of_sight.forEach(function(los){
             los.forEach(function(z){
               z.x += f.pos_in_grid.x
