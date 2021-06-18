@@ -445,8 +445,10 @@ class DDImporter extends Application
     return new Promise( function(resolve){
       var image = new Image();
       image.addEventListener('load', function() {
-          canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
-          resolve()
+          image.decode().then(() => {
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            resolve()
+          });
       });
       image.src = "data:image/"+extension+";base64,"+file.image
     });
@@ -460,12 +462,10 @@ class DDImporter extends Application
   static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source) {
     if (path && path[path.length-1] != "/")
       path = path + "/"
-    if (path && path[0] != "/")
-      path = "/" + path
-    if (!path)
-      path = "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
+      if (imagePath[0] != "/")
+        imagePath = "/" + imagePath
       imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
     }
     let newScene = new Scene({
