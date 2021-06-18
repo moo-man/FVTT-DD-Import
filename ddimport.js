@@ -414,8 +414,10 @@ class DDImporter extends Application
     return new Promise( function(resolve){
       var image = new Image();
       image.addEventListener('load', function() {
-          canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
-          resolve()
+          image.decode().then(() => {
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            resolve()
+          });
       });
       image.src = "data:image/"+extension+";base64,"+file.image
     });
