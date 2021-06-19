@@ -444,8 +444,14 @@ class DDImporter extends Application
   static image2Canvas(canvas, file, extension){
     return new Promise( function(resolve){
       var image = new Image();
+      image.decoding='sync';
       image.addEventListener('load', function() {
           image.decode().then(() => {
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            resolve()
+          }).catch(e => {
+            console.log("decode failed because of DOMException, lets try directly");
+            console.log(e);
             canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
             resolve()
           });
