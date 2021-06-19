@@ -430,6 +430,8 @@ class DDImporter extends Application
       return 'png'
     }else if (magic == "RIFF"){
       return 'webp';
+    }else if (magic == "\u00ff\u00d8\u00ff\u00e0"){
+      return 'jpeg';
     }
     return 'png';
   }
