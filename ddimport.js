@@ -642,13 +642,23 @@ class DDImporter extends Application
     if(wallinfo1.slope == undefined && wallinfo2.slope == undefined){
       return { x: wallinfo1.x, y: (wallinfo1.y + wallinfo2.y)/2 }
     }
-    if (wallinfo1.slope == undefined) {
+    else if (wallinfo1.slope == undefined) {
       let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
       return { x: wallinfo1.x, y: wallinfo2.slope * wallinfo1.x + m2 }
     }
-    if (wallinfo2.slope == undefined) {
+    else if (wallinfo2.slope == undefined) {
       let m1 = wallinfo1.y - wallinfo1.slope * wallinfo1.x
       return { x: wallinfo2.x, y: wallinfo1.slope * wallinfo2.x + m1 }
+    }
+    /* special case if we skipped a short wall, which leads to two parallel walls, 
+     * or we have a straight wall with multiple points. */
+    else if (wallinfo1.slope == wallinfo2.slope){
+      if (wallinfo1.slope == 0){
+        return { x: wallinfo1.x + (wallinfo2.x-wallinfo1.x)/2, y: wallinfo1.y }
+      }else{
+        return { x: wallinfo1.x, y: wallinfo1.y + (wallinfo2.y-wallinfo1.y)/2 }
+      }
+
     }
     let m1 = wallinfo1.y - wallinfo1.slope * wallinfo1.x
     let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
