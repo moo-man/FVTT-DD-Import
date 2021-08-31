@@ -13,17 +13,7 @@
       {{/select}}
     </select>
   </div>
-  <div class="form-group import" title="Select the format that the image contained in the uvtt file has.">
-    <label class="import-options">Image Type/Extension</label>
-    <select name="extension">
-      {{#select defaultExtension}}
-      {{#each imgExtensions as |label key|}}
-      <option value="{{key}}">{{label}}</option>
-      {{/each}}
-      {{/select}}
-    </select>
-  </div>
-  <div class="form-group import convert-section" style="display: none" title="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
+  <div class="form-group import convert-section" title="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
     <label class="import-options">convert to webp <i class="far fa-question-circle"></i></label>
     <input type="checkbox" name="convert-to-webp" {{#if webpConversion}}checked{{/if}}>
   </div>

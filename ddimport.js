@@ -17,7 +17,6 @@ Hooks.on("init", () => {
     config: false,
     default: {
       source: "data",
-      extension: "png",
       bucket: "",
       region: "",
       path: "worlds/" + game.world.name,
@@ -71,12 +70,6 @@ class DDImporter extends Application
     }
     data.defaultSource = settings.source || "data";
 
-    data.imgExtensions = {
-      "png": "png",
-      "webp" : "webp"
-    }
-    data.defaultExtension = settings.extension || "png";
-
     data.s3Bucket = settings.bucket || "";
     data.s3Region = settings.region || "";
     data.path = settings.path || "";
@@ -101,14 +94,12 @@ class DDImporter extends Application
     DDImporter.checkPath(html)
     DDImporter.checkFidelity(html)
     DDImporter.checkSource(html)
-    DDImporter.checkExtension(html)
     this.setRangeValue(html)
 
 
     html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
     html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
     html.find(".source-selector").change(ev => DDImporter.checkSource(html))
-    html.find('[name="extension"]').change(ev => DDImporter.checkExtension(html))
     
     html.find(".padding-input").change(ev => this.setRangeValue(html))
 
@@ -135,7 +126,6 @@ class DDImporter extends Application
         let offset = parseFloat(html.find('[name="offset"]').val().replace(',', '.'))
         let padding = parseFloat(html.find('[name="padding"]').val())
         let source = html.find('[name="source"]').val()
-        let extension = html.find('[name="extension"]').val()
         let bucket = html.find('[name="bucket"]').val()
         let region = html.find('[name="region"]').val()
         let path = html.find('[name="path"]').val()
@@ -145,15 +135,11 @@ class DDImporter extends Application
         let objectWalls =  html.find('[name="object-walls"]')[0].checked
         let wallsAroundFiles =  html.find('[name="walls-around-files"]')[0].checked
         let imageFileName = html.find('[name="imageFileName"]').val()
-        let selected_extension = extension
         var firstFileName
 
         if ((!bucket || !region) && source == "s3")
           return ui.notifications.error("Bucket and Region required for S3 upload")
 
-        if(toWebp){
-          extension = 'webp'
-        }
         this.close();
         let files = []
         var fileName = 'combined'
@@ -250,10 +236,14 @@ class DDImporter extends Application
         height = gridh * files[0].resolution.pixels_per_grid
         //placement math done.
         //Now use the image direct, in case of only one image and no conversion required
-        if ((selected_extension == 'webp' || !toWebp) && files.length == 1){
+        var image_type = '?'
+        if (files.length == 1){
+          image_type = DDImporter.getImageType(atob(files[0].image.substr(0,8)));
+        }
+        if ((image_type == 'webp' || !toWebp) && files.length == 1){
           let bfr = DDImporter.DecodeImage(files[0])
           ui.notifications.notify("Uploading image ....")
-          DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
+          DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
         }else{
           // Use a canvas to place the image in case we need to convert something
           let thecanvas = document.createElement('canvas');
@@ -264,19 +254,23 @@ class DDImporter extends Application
           for (var fidx=0; fidx < files.length; fidx++){
             ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
             let f = files[fidx];
-            await DDImporter.image2Canvas(mycanvas, f, selected_extension)
+            image_type = DDImporter.getImageType(atob(f.image.substr(0,8)));
+            await DDImporter.image2Canvas(mycanvas, f, image_type)
           }
           ui.notifications.notify("Uploading image ....")
+          if (toWebp){
+            image_type = 'webp';
+          }
 
           var p = new Promise(function(resolve) {
             thecanvas.toBlob(function (blob) {
               blob.arrayBuffer().then(bfr => {
-                DDImporter.uploadFile(bfr, fileName, path, source, extension, bucket)
+                DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
                   .then(function(){
                     resolve()
                 })
               })
-            }, "image/"+extension);})
+            }, "image/"+image_type);})
         }
 
         // aggregate the walls and place them right
@@ -335,11 +329,10 @@ class DDImporter extends Application
         ui.notifications.notify("upload still in progress, please wait")
         await p
         ui.notifications.notify("creating scene")
-        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source)
+        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, region, source)
 
         game.settings.set("dd-import", "importSettings", {
           source: source,
-          extension: selected_extension,
           bucket: bucket,
           region: region,
           path: path,
@@ -374,18 +367,6 @@ class DDImporter extends Application
     }
     else
       html.find(".warning.path")[0].style.display = "none"
-  }
-
-  static checkExtension(html)
-  {
-    let extensionValue = $("[name='extension']")[0].value
-    if (extensionValue == "webp")
-    {
-      html.find(".convert-section")[0].style.display = "none"
-    }
-    else{
-      html.find(".convert-section")[0].style.display = ""
-    }
   }
 
   static checkFidelity(html)
@@ -441,11 +422,31 @@ class DDImporter extends Application
     return btoa(result);
   }
 
+  static getImageType(bytes){
+    let magic = bytes.substr(0,4);
+    console.log(magic);
+    console.log(magic.charCodeAt(0));
+    if (magic == "\u0089PNG"){
+      return 'png'
+    }else if (magic == "RIFF"){
+      return 'webp';
+    }else if (magic == "\u00ff\u00d8\u00ff\u00e0"){
+      return 'jpeg';
+    }
+    return 'png';
+  }
+
   static image2Canvas(canvas, file, extension){
     return new Promise( function(resolve){
       var image = new Image();
+      image.decoding = 'sync';
       image.addEventListener('load', function() {
           image.decode().then(() => {
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            resolve()
+          }).catch(e => {
+            console.log("decode failed because of DOMException, lets try directly");
+            console.log(e);
             canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
             resolve()
           });
@@ -641,13 +642,23 @@ class DDImporter extends Application
     if(wallinfo1.slope == undefined && wallinfo2.slope == undefined){
       return { x: wallinfo1.x, y: (wallinfo1.y + wallinfo2.y)/2 }
     }
-    if (wallinfo1.slope == undefined) {
+    else if (wallinfo1.slope == undefined) {
       let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
       return { x: wallinfo1.x, y: wallinfo2.slope * wallinfo1.x + m2 }
     }
-    if (wallinfo2.slope == undefined) {
+    else if (wallinfo2.slope == undefined) {
       let m1 = wallinfo1.y - wallinfo1.slope * wallinfo1.x
       return { x: wallinfo2.x, y: wallinfo1.slope * wallinfo2.x + m1 }
+    }
+    /* special case if we skipped a short wall, which leads to two parallel walls, 
+     * or we have a straight wall with multiple points. */
+    else if (wallinfo1.slope == wallinfo2.slope){
+      if (wallinfo1.slope == 0){
+        return { x: wallinfo1.x + (wallinfo2.x-wallinfo1.x)/2, y: wallinfo1.y }
+      }else{
+        return { x: wallinfo1.x, y: wallinfo1.y + (wallinfo2.y-wallinfo1.y)/2 }
+      }
+
     }
     let m1 = wallinfo1.y - wallinfo1.slope * wallinfo1.x
     let m2 = wallinfo2.y - wallinfo2.slope * wallinfo2.x
