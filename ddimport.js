@@ -19,7 +19,7 @@ Hooks.on("init", () => {
       source: "data",
       bucket: "",
       region: "",
-      path: "worlds/" + game.world.name,
+      path: "worlds/" + game.world.data.name,
       offset: 0.0,
       fidelity: 3,
       multiImageMode: "g",
