@@ -25,6 +25,8 @@ Hooks.on("init", () => {
       multiImageMode: "g",
       webpConversion: true,
       wallsAroundFiles: true,
+      useCustomPixelsPerGrid: false,
+      defaultCustomPixelsPerGrid: 100,
     }
   })
 
@@ -84,6 +86,9 @@ class DDImporter extends Application
     data.multiImageMode = settings.multiImageMode || "g";
     data.webpConversion = settings.webpConversion;
     data.wallsAroundFiles = settings.wallsAroundFiles;
+
+    data.useCustomPixelsPerGrid = settings.useCustomPixelsPerGrid;
+    data.defaultCustomPixelsPerGrid = settings.defaultCustomPixelsPerGrid || 100;
     return data
   }
 
@@ -100,7 +105,7 @@ class DDImporter extends Application
     html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
     html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
     html.find(".source-selector").change(ev => DDImporter.checkSource(html))
-    
+
     html.find(".padding-input").change(ev => this.setRangeValue(html))
 
     html.find(".add-file").click(async ev => {
@@ -116,7 +121,13 @@ class DDImporter extends Application
       html.find(".multi-mode-section")[0].style.display = ""
     })
 
-
+    html.find(".use-custom-gridPPI").click(async ev => {
+      if(html.find('[name="use-custom-gridPPI"]')[0].checked) {
+        html.find(".custom-gridPPI-section")[0].style.display = ""
+      }else{
+        html.find(".custom-gridPPI-section")[0].style.display = "none"
+      }
+    })
 
     html.find(".import-map").click(async ev => {
       try
@@ -135,6 +146,8 @@ class DDImporter extends Application
         let objectWalls =  html.find('[name="object-walls"]')[0].checked
         let wallsAroundFiles =  html.find('[name="walls-around-files"]')[0].checked
         let imageFileName = html.find('[name="imageFileName"]').val()
+        let useCustomPixelsPerGrid =  html.find('[name="use-custom-gridPPI"]')[0].checked
+        let customPixelsPerGrid = html.find('[name="customGridPPI"]').val() * 1
         var firstFileName
 
         if ((!bucket || !region) && source == "s3")
@@ -183,13 +196,22 @@ class DDImporter extends Application
           sceneName = firstFileName
         }
 
+        // determine the pixels per grid value to use
+        let pixelsPerGrid = ""
+        if(useCustomPixelsPerGrid) {
+          pixelsPerGrid = customPixelsPerGrid
+        }else{
+          pixelsPerGrid = files[0].resolution.pixels_per_grid
+        }
+        console.log("Grid PPI = ", pixelsPerGrid)
+
         // do the placement math
         let size = {}
         size.x = files[0].resolution.map_size.x
         size.y = files[0].resolution.map_size.y
         let grid_size = { 'x': size.x, 'y': size.y }
-        size.x = size.x * files[0].resolution.pixels_per_grid
-        size.y = size.y * files[0].resolution.pixels_per_grid
+        size.x = size.x * pixelsPerGrid
+        size.y = size.y * pixelsPerGrid
 
         let count = files.length
         var width, height, gridw, gridh
@@ -232,8 +254,8 @@ class DDImporter extends Application
           gridw = hwidth * grid_size.x
           gridh = vcount * grid_size.y
         }
-        width = gridw * files[0].resolution.pixels_per_grid
-        height = gridh * files[0].resolution.pixels_per_grid
+        width = gridw * pixelsPerGrid
+        height = gridh * pixelsPerGrid
         //placement math done.
         //Now use the image direct, in case of only one image and no conversion required
         var image_type = '?'
@@ -279,7 +301,7 @@ class DDImporter extends Application
           "resolution": {
             "map_origin": {"x": 0, "y": 0},
             "map_size": {"x": gridw, "y": gridh},
-            "pixels_per_grid": files[0]["resolution"]["pixels_per_grid"],
+            "pixels_per_grid": pixelsPerGrid,
           },
           "line_of_sight": [],
           "portals": [],
@@ -329,7 +351,7 @@ class DDImporter extends Application
         ui.notifications.notify("upload still in progress, please wait")
         await p
         ui.notifications.notify("creating scene")
-        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, region, source)
+        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, region, source, pixelsPerGrid)
 
         game.settings.set("dd-import", "importSettings", {
           source: source,
@@ -436,7 +458,7 @@ class DDImporter extends Application
     return 'png';
   }
 
-  static image2Canvas(canvas, file, extension){
+  static image2Canvas(canvas, file, extension, imageWidth, imageHeight){
     return new Promise( function(resolve){
       var image = new Image();
       image.decoding = 'sync';
@@ -460,7 +482,7 @@ class DDImporter extends Application
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source) {
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source, pixelsPerGrid) {
     if (path && path[path.length-1] != "/")
       path = path + "/"
     let imagePath = path + fileName + "." + extension;
@@ -471,18 +493,18 @@ class DDImporter extends Application
     }
     let newScene = new Scene({
       name: sceneName,
-      grid: file.resolution.pixels_per_grid,
+      grid: pixelsPerGrid,
       img: imagePath,
-      width: file.resolution.pixels_per_grid * file.resolution.map_size.x,
-      height: file.resolution.pixels_per_grid * file.resolution.map_size.y,
+      width: pixelsPerGrid * file.resolution.map_size.x,
+      height: pixelsPerGrid * file.resolution.map_size.y,
       padding: padding,
       shiftX : 0,
       shiftY : 0
     })
     newScene.data.update(
       {
-        walls : this.GetWalls(file, newScene, 6 - fidelity, offset).concat(this.GetDoors(file, newScene, offset)).map(w => w.toObject()), 
-        lights : this.GetLights(file, newScene).map(l => l.toObject())
+        walls : this.GetWalls(file, newScene, 6 - fidelity, offset, pixelsPerGrid).concat(this.GetDoors(file, newScene, offset, pixelsPerGrid)).map(w => w.toObject()),
+        lights : this.GetLights(file, newScene, pixelsPerGrid).map(l => l.toObject())
       })
     //mergeObject(newScene.data, {walls: walls.concat(doors), lights: lights})
     let scene = await Scene.create(newScene.data);
@@ -491,7 +513,7 @@ class DDImporter extends Application
     })
   }
 
-  static GetWalls(file, scene, skipNum, offset) {
+  static GetWalls(file, scene, skipNum, offset, pixelsPerGrid) {
     let walls = [];
     let ddWalls = file.line_of_sight
 
@@ -515,30 +537,30 @@ class DDImporter extends Application
       wallSet = this.preprocessWalls(wallSet, skipNum)
       // Connect to walls that end *before* the current wall
       for (let i = 0; i < connectedTo.length; i++) {
-        walls.push(this.makeWall(file, scene, connectedTo[i], wallSet[0]))
+        walls.push(this.makeWall(file, scene, connectedTo[i], wallSet[0], pixelsPerGrid))
       }
       for (let i = 0; i < wallSet.length - 1; i++) {
-        walls.push(this.makeWall(file, scene, wallSet[i], wallSet[i + 1]))
+        walls.push(this.makeWall(file, scene, wallSet[i], wallSet[i + 1], pixelsPerGrid))
       }
       // Connect to walls that end *after* the current wall
       for (let i = 0; i < connectTo.length; i++) {
-        walls.push(this.makeWall(file, scene, wallSet[wallSet.length - 1], connectTo[i]))
+        walls.push(this.makeWall(file, scene, wallSet[wallSet.length - 1], connectTo[i], pixelsPerGrid))
       }
     }
 
     return walls
   }
 
-  static makeWall(file, scene, pointA, pointB) {
+  static makeWall(file, scene, pointA, pointB, pixelsPerGrid) {
     let sceneDimensions = Canvas.getDimensions(scene.data)
     let offsetX = sceneDimensions.paddingX;
     let offsetY = sceneDimensions.paddingY;
     return new WallDocument({
       c: [
-        (pointA.x * file.resolution.pixels_per_grid) + offsetX,
-        (pointA.y * file.resolution.pixels_per_grid) + offsetY,
-        (pointB.x * file.resolution.pixels_per_grid) + offsetX,
-        (pointB.y * file.resolution.pixels_per_grid) + offsetY
+        (pointA.x * pixelsPerGrid) + offsetX,
+        (pointA.y * pixelsPerGrid) + offsetY,
+        (pointB.x * pixelsPerGrid) + offsetX,
+        (pointB.y * pixelsPerGrid) + offsetY
       ]
     })
   }
@@ -650,7 +672,7 @@ class DDImporter extends Application
       let m1 = wallinfo1.y - wallinfo1.slope * wallinfo1.x
       return { x: wallinfo2.x, y: wallinfo1.slope * wallinfo2.x + m1 }
     }
-    /* special case if we skipped a short wall, which leads to two parallel walls, 
+    /* special case if we skipped a short wall, which leads to two parallel walls,
      * or we have a straight wall with multiple points. */
     else if (wallinfo1.slope == wallinfo2.slope){
       if (wallinfo1.slope == 0){
@@ -670,7 +692,7 @@ class DDImporter extends Application
     return Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2))
   }
 
-  static GetDoors(file, scene, offset) {
+  static GetDoors(file, scene, offset, pixelsPerGrid) {
     let doors = [];
     let ddDoors = file.portals;
     let sceneDimensions = Canvas.getDimensions(scene.data)
@@ -683,10 +705,10 @@ class DDImporter extends Application
     for (let door of ddDoors) {
       doors.push(new WallDocument({
         c : [
-          (door.bounds[0].x   * file.resolution.pixels_per_grid) + offsetX,
-          (door.bounds[0].y   * file.resolution.pixels_per_grid) + offsetY,
-          (door.bounds[1].x * file.resolution.pixels_per_grid) + offsetX,
-          (door.bounds[1].y * file.resolution.pixels_per_grid) + offsetY
+          (door.bounds[0].x   * pixelsPerGrid) + offsetX,
+          (door.bounds[0].y   * pixelsPerGrid) + offsetY,
+          (door.bounds[1].x * pixelsPerGrid) + offsetX,
+          (door.bounds[1].y * pixelsPerGrid) + offsetY
         ],
         door: game.settings.get("dd-import", "openableWindows") ?  1 : (door.closed ? 1 : 0), // If openable windows - all portals should be doors, otherwise, only portals that "block light" should be openable (doors)
         sense: (door.closed) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
@@ -696,7 +718,7 @@ class DDImporter extends Application
     return doors
   }
 
-  static GetLights(file, scene) {
+  static GetLights(file, scene, pixelsPerGrid) {
     let lights = [];
     let sceneDimensions = Canvas.getDimensions(scene.data)
     let offsetX = sceneDimensions.paddingX;
@@ -704,8 +726,8 @@ class DDImporter extends Application
     for (let light of file.lights) {
       let newLight = new AmbientLightDocument({
         t: "l",
-        x: (light.position.x * file.resolution.pixels_per_grid) + offsetX,
-        y: (light.position.y * file.resolution.pixels_per_grid) + offsetY,
+        x: (light.position.x * pixelsPerGrid) + offsetX,
+        y: (light.position.y * pixelsPerGrid) + offsetY,
         rotation: 0,
         dim: light.range * 4,
         bright: light.range * 2,
