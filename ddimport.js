@@ -255,7 +255,7 @@ class DDImporter extends Application
             ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
             let f = files[fidx];
             image_type = DDImporter.getImageType(atob(f.image.substr(0,8)));
-            await DDImporter.image2Canvas(mycanvas, f, image_type)
+            await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
           }
           ui.notifications.notify("Uploading image ....")
           if (toWebp){
@@ -442,12 +442,12 @@ class DDImporter extends Application
       image.decoding = 'sync';
       image.addEventListener('load', function() {
           image.decode().then(() => {
-            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y, imageWidth, imageHeight);
             resolve()
           }).catch(e => {
             console.log("decode failed because of DOMException, lets try directly");
             console.log(e);
-            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y);
+            canvas.drawImage(image, file.pos_in_image.x, file.pos_in_image.y, imageWidth, imageHeight);
             resolve()
           });
       });
