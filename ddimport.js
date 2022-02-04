@@ -259,9 +259,6 @@ class DDImporter extends Application
         //placement math done.
         //Now use the image direct, in case of only one image and no conversion required
         var image_type = '?'
-        if (files.length == 1){
-          image_type = DDImporter.getImageType(atob(files[0].image.substr(0,8)));
-        }
 
         // This code works for both single files and multiple files and supports resizing during scene generation
         // Use a canvas to place the image in case we need to convert something
