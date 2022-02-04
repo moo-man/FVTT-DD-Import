@@ -262,38 +262,34 @@ class DDImporter extends Application
         if (files.length == 1){
           image_type = DDImporter.getImageType(atob(files[0].image.substr(0,8)));
         }
-        if ((image_type == 'webp' || !toWebp) && files.length == 1){
-          let bfr = DDImporter.DecodeImage(files[0])
-          ui.notifications.notify("Uploading image ....")
-          DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
-        }else{
-          // Use a canvas to place the image in case we need to convert something
-          let thecanvas = document.createElement('canvas');
-          thecanvas.width = width;
-          thecanvas.height = height;
-          let mycanvas = thecanvas.getContext("2d");
-          ui.notifications.notify("Processing Images")
-          for (var fidx=0; fidx < files.length; fidx++){
-            ui.notifications.notify("Combining " + (fidx + 1) + " out of " + files.length)
-            let f = files[fidx];
-            image_type = DDImporter.getImageType(atob(f.image.substr(0,8)));
-            await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
-          }
-          ui.notifications.notify("Uploading image ....")
-          if (toWebp){
-            image_type = 'webp';
-          }
 
-          var p = new Promise(function(resolve) {
-            thecanvas.toBlob(function (blob) {
-              blob.arrayBuffer().then(bfr => {
-                DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
-                  .then(function(){
-                    resolve()
-                })
-              })
-            }, "image/"+image_type);})
+        // This code works for both single files and multiple files and supports resizing during scene generation
+        // Use a canvas to place the image in case we need to convert something
+        let thecanvas = document.createElement('canvas');
+        thecanvas.width = width;
+        thecanvas.height = height;
+        let mycanvas = thecanvas.getContext("2d");
+        ui.notifications.notify("Processing Images")
+        for (var fidx=0; fidx < files.length; fidx++){
+          ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
+          let f = files[fidx];
+          image_type = DDImporter.getImageType(atob(f.image.substr(0,8)));
+          await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
         }
+        ui.notifications.notify("Uploading image ....")
+        if (toWebp){
+          image_type = 'webp';
+        }
+
+        var p = new Promise(function(resolve) {
+          thecanvas.toBlob(function (blob) {
+            blob.arrayBuffer().then(bfr => {
+              DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
+                .then(function(){
+                  resolve()
+              })
+            })
+          }, "image/"+image_type);})
 
         // aggregate the walls and place them right
         let aggregated = {
