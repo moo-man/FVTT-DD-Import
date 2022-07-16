@@ -19,7 +19,7 @@ Hooks.on("init", () => {
       source: "data",
       bucket: "",
       region: "",
-      path: "worlds/" + game.world.data.name,
+      uploadPath: "worlds/" + game.world.data.name,
       offset: 0.0,
       fidelity: 3,
       multiImageMode: "g",
@@ -74,7 +74,7 @@ class DDImporter extends Application
 
     data.s3Bucket = settings.bucket || "";
     data.s3Region = settings.region || "";
-    data.path = settings.path || "";
+    data.uploadPath = settings.uploadPath || "";
     data.offset = settings.offset || 0;
     data.padding = settings.padding || 0.25
 
@@ -139,7 +139,7 @@ class DDImporter extends Application
         let source = html.find('[name="source"]').val()
         let bucket = html.find('[name="bucket"]').val()
         let region = html.find('[name="region"]').val()
-        let path = html.find('[name="path"]').val()
+        let uploadPath = html.find('[name="upload-path"]').val()
         let filecount = html.find('[name="filecount"]').val()
         let mode =  html.find('[name="multi-mode"]').val()
         let toWebp =  html.find('[name="convert-to-webp"]')[0].checked
@@ -281,7 +281,7 @@ class DDImporter extends Application
         var p = new Promise(function(resolve) {
           thecanvas.toBlob(function (blob) {
             blob.arrayBuffer().then(bfr => {
-              DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
+              DDImporter.uploadFile(bfr, fileName, uploadPath, source, image_type, bucket)
                 .then(function(){
                   resolve()
               })
@@ -344,13 +344,13 @@ class DDImporter extends Application
         ui.notifications.notify("upload still in progress, please wait")
         await p
         ui.notifications.notify("creating scene")
-        DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, region, source, pixelsPerGrid)
+        DDImporter.DDImport(aggregated, sceneName, fileName, uploadPath, fidelity, offset, padding, image_type, bucket, region, source, pixelsPerGrid)
 
         game.settings.set("dd-import", "importSettings", {
           source: source,
           bucket: bucket,
           region: region,
-          path: path,
+          uploadPath: uploadPath,
           offset: offset,
           padding: padding,
           fidelity: fidelity,
@@ -375,13 +375,13 @@ class DDImporter extends Application
 
   static checkPath(html)
   {
-    let pathValue = $("[name='path']")[0].value
+    let pathValue = $("[name='upload-path']")[0].value
     if (pathValue[1] == ":")
     {
-      html.find(".warning.path")[0].style.display = ""
+      html.find(".warning.upload-path")[0].style.display = ""
     }
     else
-      html.find(".warning.path")[0].style.display = "none"
+      html.find(".warning.upload-path")[0].style.display = "none"
   }
 
   static checkFidelity(html)
@@ -470,15 +470,15 @@ class DDImporter extends Application
     });
   }
 
-  static async uploadFile(file, name, path, source, extension, bucket) {
+  static async uploadFile(file, name, uploadPath, source, extension, bucket) {
     let uploadFile = new File([file], name + "." + extension, { type: 'image/' + extension });
-    await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
+    await FilePicker.upload(source, uploadPath, uploadFile, { bucket: bucket })
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source, pixelsPerGrid) {
-    if (path && path[path.length-1] != "/")
-      path = path + "/"
-    let imagePath = path + fileName + "." + extension;
+  static async DDImport(file, sceneName, fileName, uploadPath, fidelity, offset, padding, extension, bucket, region, source, pixelsPerGrid) {
+    if (uploadPath && uploadPath[uploadPath.length-1] != "/")
+      uploadPath = uploadPath + "/"
+    let imagePath = uploadPath + fileName + "." + extension;
     if (source === "s3") {
       if (imagePath[0] != "/")
         imagePath = "/" + imagePath
