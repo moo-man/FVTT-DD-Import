@@ -19,7 +19,7 @@ Hooks.on("init", () => {
       source: "data",
       bucket: "",
       region: "",
-      uploadPath: "worlds/" + game.world.data.name,
+      path: "worlds/" + game.world.data.name,
       offset: 0.0,
       fidelity: 3,
       multiImageMode: "g",
@@ -74,7 +74,7 @@ class DDImporter extends Application
 
     data.s3Bucket = settings.bucket || "";
     data.s3Region = settings.region || "";
-    data.uploadPath = settings.uploadPath || "";
+    data.uploadPath = settings.path || "";
     data.offset = settings.offset || 0;
     data.padding = settings.padding || 0.25
 
@@ -350,7 +350,7 @@ class DDImporter extends Application
           source: source,
           bucket: bucket,
           region: region,
-          uploadPath: uploadPath,
+          path: uploadPath,
           offset: offset,
           padding: padding,
           fidelity: fidelity,
