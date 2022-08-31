@@ -1,5 +1,4 @@
-<dit
->
+<form>
   <div class="form-group import">
     <label class="import-options">Scene Name</label><input type='text' name="sceneName" />
   </div>
@@ -14,7 +13,7 @@
     </select>
   </div>
   <div class="form-group import convert-section" title="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
-    <label class="import-options">convert to webp <i class="far fa-question-circle"></i></label>
+    <label class="import-options">Convert to WebP <i class="far fa-question-circle"></i></label>
     <input type="checkbox" name="convert-to-webp" {{#if webpConversion}}checked{{/if}}>
   </div>
 
@@ -29,6 +28,7 @@
 
   <div class="form-group import" title="This is where the image is uploaded. Your path should be relative to your User Data folder. e.g. worlds/yourworld/maps">
     <label class="import-options">Upload Path <i class="far fa-question-circle"></i></label>
+    {{filePicker type="folder" target="path"}}
     <input class= "path-input" type='text' name="path" value="{{this.path}}" />
   </div>
 
@@ -61,8 +61,9 @@
   <div class="form-group import">
     <label class="import-options">Upload Universal VTT (.dd2vtt, .df2vtt, .uvtt)</label>
   </div>
-  <div class="form-group import" id="dd-upload-files">
+  <div class="form-group import" id="dd-upload-files" style="flex-direction: column";>
     <button type="button" class="add-file">Add another file</button>
+
     <input class="file-input" type='file' name='file0' accept=".dd2vtt,.df2vtt,.uvtt" />
     <input class="hidden-input" type='hidden' value="1" name="filecount" />
     <div class="multi-mode-section" style="display: none">
@@ -98,4 +99,4 @@
   </div>
 
   <button type="submit" class="import-map">Import</button>
-</div>
+</form>
