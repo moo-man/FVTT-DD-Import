@@ -302,7 +302,7 @@ class DDImporter extends FormApplication {
       ui.notifications.notify("upload still in progress, please wait")
       await p
       ui.notifications.notify("creating scene")
-      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, source, pixelsPerGrid)
+      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, game.data.files.s3.endpoint, source, pixelsPerGrid)
 
       game.settings.set("dd-import", "importSettings", {
         source: source,
@@ -463,12 +463,11 @@ class DDImporter extends FormApplication {
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, source, pixelsPerGrid) {
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, endpoint, source, pixelsPerGrid) {
     if (path && path[path.length - 1] != "/")
       path = path + "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
-      endpoint = game.data.files.s3.endpoint
       if (imagePath[0] == "/")
         imagePath = imagePath.slice(1)
       imagePath = endpoint.protocol + bucket + "." + endpoint.host + endpoint.path + imagePath;
