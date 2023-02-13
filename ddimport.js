@@ -227,27 +227,35 @@ class DDImporter extends FormApplication {
       thecanvas.height = height;
       let mycanvas = thecanvas.getContext("2d");
       ui.notifications.notify("Processing Images")
-      for (var fidx = 0; fidx < files.length; fidx++) {
-        ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
-        let f = files[fidx];
-        image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
-        await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
+      if (files.length > 1) {
+        for (var fidx = 0; fidx < files.length; fidx++) {
+          ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
+          let f = files[fidx];
+          image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
+          await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
+        }
+        ui.notifications.notify("Uploading image ....")
+        if (toWebp) {
+          image_type = 'webp';
+        }
+
+        var p = new Promise(function (resolve) {
+          thecanvas.toBlob(function (blob) {
+            blob.arrayBuffer().then(bfr => {
+              DDImporter.uploadFile(blob, fileName, path, source, image_type, bucket)
+                .then(function () {
+                  resolve()
+                })
+            }, "image/" + image_type);
+          })
+        })
       }
-      ui.notifications.notify("Uploading image ....")
-      if (toWebp) {
-        image_type = 'webp';
+      else {
+        let bfr = DDImporter.DecodeImage(files[0]);
+        image_type = DDImporter.getImageType(atob(files[0].image.substr(0, 8)));
+        DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket);
       }
 
-      var p = new Promise(function (resolve) {
-        thecanvas.toBlob(function (blob) {
-          blob.arrayBuffer().then(bfr => {
-            DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
-              .then(function () {
-                resolve()
-              })
-          })
-        }, "image/" + image_type);
-      })
 
       // aggregate the walls and place them right
       let aggregated = {
