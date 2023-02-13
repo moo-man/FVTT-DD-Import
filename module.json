@@ -12,6 +12,7 @@
   "scripts": [
     "ddimport.js"
   ],
+  "minimumCoreVersion" : 10,
   "compatibility": {
     "minimum": "10",
     "verified": "10",
