@@ -59,8 +59,8 @@ class DDImporter extends FormApplication {
   }
 
 
-  getData() {
-    let data = super.getData();
+  async getData() {
+    let data = await super.getData();
     let settings = game.settings.get("dd-import", "importSettings")
 
     data.dataSources = {
@@ -70,6 +70,7 @@ class DDImporter extends FormApplication {
     data.defaultSource = settings.source || "data";
 
     data.s3Bucket = settings.bucket || "";
+    data.bucketOptions = (await FilePicker.browse("s3", "")).dirs;
     data.path = settings.path || "";
     data.offset = settings.offset || 0;
     data.padding = settings.padding || 0.25
