@@ -70,7 +70,13 @@ class DDImporter extends FormApplication {
     data.defaultSource = settings.source || "data";
 
     data.s3Bucket = settings.bucket || "";
-    data.bucketOptions = (await FilePicker.browse("s3", "")).dirs;
+    try {
+      data.bucketOptions = (await FilePicker.browse("s3", "")).dirs;
+    }
+    catch (e)
+    {
+      console.log("No S3 buckets found")
+    }
     data.path = settings.path || "";
     data.offset = settings.offset || 0;
     data.padding = settings.padding || 0.25
