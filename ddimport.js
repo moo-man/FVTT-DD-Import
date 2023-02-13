@@ -317,7 +317,7 @@ class DDImporter extends FormApplication {
       ui.notifications.notify("upload still in progress, please wait")
       await p
       ui.notifications.notify("creating scene")
-      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, game.data.files.s3.endpoint, source, pixelsPerGrid)
+      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, game.data.files.s3?.endpoint, source, pixelsPerGrid)
 
       game.settings.set("dd-import", "importSettings", {
         source: source,
