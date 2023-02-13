@@ -736,8 +736,8 @@ class DDImporter extends FormApplication {
             x: ((light.position.x - file.resolution.map_origin.x) * pixelsPerGrid) + offsetX,
             y: ((light.position.y - file.resolution.map_origin.y) * pixelsPerGrid) + offsetY,
             rotation: 0,
-          dim: light.range * 4,
-          bright: light.range * 2,
+            dim: light.range * (game.system.gridDistance || 1),
+            bright: (light.range * (game.system.gridDistance || 1)) / 2,
           angle: 360,
           tintColor: "#" + light.color.substring(2),
           tintAlpha: (0.05 * light.intensity)
