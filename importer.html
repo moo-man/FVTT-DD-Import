@@ -90,10 +90,15 @@
     </div>
     <div class="s3-section" style="display: none">
       <div class="form-group import">
-        <label class="import-options">Bucket Name for S3 Storage</label><input type='text' name="bucket" value="{{s3Bucket}}" />
-      </div>
-      <div class="form-group import">
-        <label class="import-options">Region Name for S3 Storage</label><input type='text' name="region" value="{{s3Region}}" />
+        <label class="import-options">Bucket Name for S3 Storage</label>
+        <select name="bucket">
+          {{#select s3Bucket}}
+            <option value=""></option>
+            {{#each bucketOptions}}
+            <option value="{{this}}">{{this}}</option>
+            {{/each}}
+          {{/select}}
+        </select>
       </div>
     </div>
   </div>

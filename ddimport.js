@@ -18,7 +18,6 @@ Hooks.on("init", () => {
     default: {
       source: "data",
       bucket: "",
-      region: "",
       path: "worlds/" + game.world.id,
       offset: 0.0,
       fidelity: 3,
@@ -60,8 +59,8 @@ class DDImporter extends FormApplication {
   }
 
 
-  getData() {
-    let data = super.getData();
+  async getData() {
+    let data = await super.getData();
     let settings = game.settings.get("dd-import", "importSettings")
 
     data.dataSources = {
@@ -71,7 +70,13 @@ class DDImporter extends FormApplication {
     data.defaultSource = settings.source || "data";
 
     data.s3Bucket = settings.bucket || "";
-    data.s3Region = settings.region || "";
+    try {
+      data.bucketOptions = (await FilePicker.browse("s3", "")).dirs;
+    }
+    catch (e)
+    {
+      console.log("No S3 buckets found")
+    }
     data.path = settings.path || "";
     data.offset = settings.offset || 0;
     data.padding = settings.padding || 0.25
@@ -99,7 +104,6 @@ class DDImporter extends FormApplication {
       let padding = parseFloat(formData["padding"])
       let source = formData["source"]
       let bucket = formData["bucket"]
-      let region = formData["region"]
       let path = formData["path"]
       let filecount = formData["filecount"]
       let mode = formData["multi-mode"]
@@ -111,8 +115,8 @@ class DDImporter extends FormApplication {
       let customPixelsPerGrid = formData["customGridPPI"] * 1
       var firstFileName
 
-      if ((!bucket || !region) && source == "s3")
-        return ui.notifications.error("Bucket and Region required for S3 upload")
+      if ((!bucket) && source == "s3")
+        return ui.notifications.error("Bucket required for S3 upload")
 
       let files = []
       var fileName = 'combined'
@@ -227,27 +231,35 @@ class DDImporter extends FormApplication {
       thecanvas.height = height;
       let mycanvas = thecanvas.getContext("2d");
       ui.notifications.notify("Processing Images")
-      for (var fidx = 0; fidx < files.length; fidx++) {
-        ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
-        let f = files[fidx];
-        image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
-        await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
+      if (files.length > 1) {
+        for (var fidx = 0; fidx < files.length; fidx++) {
+          ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
+          let f = files[fidx];
+          image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
+          await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
+        }
+        ui.notifications.notify("Uploading image ....")
+        if (toWebp) {
+          image_type = 'webp';
+        }
+
+        var p = new Promise(function (resolve) {
+          thecanvas.toBlob(function (blob) {
+            blob.arrayBuffer().then(bfr => {
+              DDImporter.uploadFile(blob, fileName, path, source, image_type, bucket)
+                .then(function () {
+                  resolve()
+                })
+            }, "image/" + image_type);
+          })
+        })
       }
-      ui.notifications.notify("Uploading image ....")
-      if (toWebp) {
-        image_type = 'webp';
+      else {
+        let bfr = DDImporter.DecodeImage(files[0]);
+        image_type = DDImporter.getImageType(atob(files[0].image.substr(0, 8)));
+        DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket);
       }
 
-      var p = new Promise(function (resolve) {
-        thecanvas.toBlob(function (blob) {
-          blob.arrayBuffer().then(bfr => {
-            DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
-              .then(function () {
-                resolve()
-              })
-          })
-        }, "image/" + image_type);
-      })
 
       // aggregate the walls and place them right
       let aggregated = {
@@ -305,12 +317,11 @@ class DDImporter extends FormApplication {
       ui.notifications.notify("upload still in progress, please wait")
       await p
       ui.notifications.notify("creating scene")
-      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, region, source, pixelsPerGrid)
+      DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, game.data.files.s3.endpoint, source, pixelsPerGrid)
 
       game.settings.set("dd-import", "importSettings", {
         source: source,
         bucket: bucket,
-        region: region,
         path: path,
         offset: offset,
         padding: padding,
@@ -467,14 +478,14 @@ class DDImporter extends FormApplication {
     await FilePicker.upload(source, path, uploadFile, { bucket: bucket })
   }
 
-  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, region, source, pixelsPerGrid) {
+  static async DDImport(file, sceneName, fileName, path, fidelity, offset, padding, extension, bucket, endpoint, source, pixelsPerGrid) {
     if (path && path[path.length - 1] != "/")
       path = path + "/"
     let imagePath = path + fileName + "." + extension;
     if (source === "s3") {
-      if (imagePath[0] != "/")
-        imagePath = "/" + imagePath
-      imagePath = "https://" + bucket + ".s3." + region + ".amazonaws.com" + imagePath;
+      if (imagePath[0] == "/")
+        imagePath = imagePath.slice(1)
+      imagePath = endpoint.protocol + '//' + bucket + '.' + endpoint.host + endpoint.path + imagePath;
     }
     let newScene = new Scene({
       name: sceneName,
@@ -736,8 +747,8 @@ class DDImporter extends FormApplication {
             x: ((light.position.x - file.resolution.map_origin.x) * pixelsPerGrid) + offsetX,
             y: ((light.position.y - file.resolution.map_origin.y) * pixelsPerGrid) + offsetY,
             rotation: 0,
-          dim: light.range * 4,
-          bright: light.range * 2,
+            dim: light.range * (game.system.gridDistance || 1),
+            bright: (light.range * (game.system.gridDistance || 1)) / 2,
           angle: 360,
           tintColor: "#" + light.color.substring(2),
           tintAlpha: (0.05 * light.intensity)
