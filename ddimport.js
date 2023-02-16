@@ -231,34 +231,28 @@ class DDImporter extends FormApplication {
       thecanvas.height = height;
       let mycanvas = thecanvas.getContext("2d");
       ui.notifications.notify("Processing Images")
-      if (files.length > 1) {
-        for (var fidx = 0; fidx < files.length; fidx++) {
-          ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + "images")
-          let f = files[fidx];
-          image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
-          await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
-        }
-        ui.notifications.notify("Uploading image ....")
-        if (toWebp) {
-          image_type = 'webp';
-        }
+      for (var fidx = 0; fidx < files.length; fidx++) {
+        ui.notifications.notify("Processing " + (fidx + 1) + " out of " + files.length + " images")
+        let f = files[fidx];
+        image_type = DDImporter.getImageType(atob(f.image.substr(0, 8)));
+        await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
+      }
+      ui.notifications.notify("Uploading image ....")
+      if (toWebp) {
+        image_type = 'webp';
+      }
 
-        var p = new Promise(function (resolve) {
-          thecanvas.toBlob(function (blob) {
-            blob.arrayBuffer().then(bfr => {
-              DDImporter.uploadFile(blob, fileName, path, source, image_type, bucket)
-                .then(function () {
-                  resolve()
-                })
-            }, "image/" + image_type);
-          })
-        })
-      }
-      else {
-        let bfr = DDImporter.DecodeImage(files[0]);
-        image_type = DDImporter.getImageType(atob(files[0].image.substr(0, 8)));
-        DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket);
-      }
+      var p = new Promise(function (resolve) {
+        thecanvas.toBlob(function (blob) {
+          blob.arrayBuffer().then(bfr => {
+            DDImporter.uploadFile(bfr, fileName, path, source, image_type, bucket)
+              .then(function () {
+                resolve()
+              })
+          });
+        }, "image/" + image_type)
+      })
+
 
 
       // aggregate the walls and place them right
@@ -314,9 +308,9 @@ class DDImporter extends FormApplication {
         aggregated.lights = aggregated.lights.concat(f.lights)
         aggregated.portals = aggregated.portals.concat(f.portals)
       }
-      ui.notifications.notify("upload still in progress, please wait")
+      ui.notifications.notify("Upload still in progress, please wait")
       await p
-      ui.notifications.notify("creating scene")
+      ui.notifications.notify("Creating scene")
       DDImporter.DDImport(aggregated, sceneName, fileName, path, fidelity, offset, padding, image_type, bucket, game.data.files.s3?.endpoint, source, pixelsPerGrid)
 
       game.settings.set("dd-import", "importSettings", {
@@ -440,6 +434,11 @@ class DDImporter extends FormApplication {
     return btoa(result);
   }
 
+  
+  static Uint8ToBlob(u8Arr, type) {
+    return new Blob([u8Arr], {type : "image/" + type});
+  }
+
   static getImageType(bytes) {
     let magic = bytes.substr(0, 4);
     console.log(magic);
@@ -469,7 +468,7 @@ class DDImporter extends FormApplication {
           resolve()
         });
       });
-      image.src = "data:image/" + extension + ";base64," + file.image
+      image.src = URL.createObjectURL(DDImporter.Uint8ToBlob(DDImporter.DecodeImage(file), extension))
     });
   }
 
