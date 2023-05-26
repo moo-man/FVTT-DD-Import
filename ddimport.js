@@ -6,7 +6,7 @@ Hooks.on("renderSidebarTab", async (app, html) => {
       new DDImporter().render(true);
     });
 
-    html.find(".directory-footer").append(button);
+    html.find("div.header-actions.action-buttons.flexrow").append(button);
   }
 })
 
