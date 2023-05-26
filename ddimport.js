@@ -1,5 +1,5 @@
 Hooks.on("renderSidebarTab", async (app, html) => {
-  if (app.options.id == "scenes") {
+  if (app instanceof SceneDirectory) {
     let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> Universal Battlemap Import</button>")
 
     button.click(function () {
