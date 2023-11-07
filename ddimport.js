@@ -706,6 +706,8 @@ class DDImporter extends FormApplication {
     let sceneDimensions = scene.getDimensions()
     let offsetX = sceneDimensions.sceneX
     let offsetY = sceneDimensions.sceneY
+    let originX = file.resolution.map_origin.x
+    let originY = file.resolution.map_origin.y
 
     if (offset != 0) {
       ddDoors = this.makeOffsetWalls(ddDoors, offset)
@@ -715,14 +717,16 @@ class DDImporter extends FormApplication {
 
         doors.push(new WallDocument({
           c: [
-            (door.bounds[0].x * pixelsPerGrid) + offsetX,
-            (door.bounds[0].y * pixelsPerGrid) + offsetY,
-            (door.bounds[1].x * pixelsPerGrid) + offsetX,
-            (door.bounds[1].y * pixelsPerGrid) + offsetY
+            ((door.bounds[0].x - originX) * pixelsPerGrid) + offsetX,
+            ((door.bounds[0].y - originY) * pixelsPerGrid) + offsetY,
+            ((door.bounds[1].x - originX) * pixelsPerGrid) + offsetX,
+            ((door.bounds[1].y - originY) * pixelsPerGrid) + offsetY
           ],
           door: game.settings.get("dd-import", "openableWindows") ? 1 : (door.closed ? 1 : 0), // If openable windows - all portals should be doors, otherwise, only portals that "block light" should be openable (doors)
-          sense: (door.closed) ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.NONE
-        }))
+          light : door.closed ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.PROXIMITY, 
+          sight : door.closed ? CONST.WALL_SENSE_TYPES.NORMAL : CONST.WALL_SENSE_TYPES.PROXIMITY,
+          threshold : door.closed ? {} : {attenuation : true, light : 10, sight : 10} 
+        }))   // Proximity type if door.closed = false (assumes they are windows)
       }
       catch(e)
       {
