@@ -23,7 +23,7 @@ Hooks.on("init", () => {
       fidelity: 3,
       multiImageMode: "g",
       webpConversion: true,
-	  webpQuality: 0.8,
+	    webpQuality: 0.8,
       wallsAroundFiles: true,
       useCustomPixelsPerGrid: false,
       defaultCustomPixelsPerGrid: 100,
@@ -89,6 +89,7 @@ class DDImporter extends FormApplication {
     }
     data.multiImageMode = settings.multiImageMode || "g";
     data.webpConversion = settings.webpConversion;
+    data.webpQuality= settings.webpQuality || 0.8;
     data.wallsAroundFiles = settings.wallsAroundFiles;
 
     data.useCustomPixelsPerGrid = settings.useCustomPixelsPerGrid;
@@ -106,10 +107,9 @@ class DDImporter extends FormApplication {
       let source = formData["source"]
       let bucket = formData["bucket"]
       let path = formData["path"]
-      let filecount = formData["filecount"]
       let mode = formData["multi-mode"]
       let toWebp = formData["convert-to-webp"]
-	  let webpQuality = formData["webp-quality"]
+	    let webpQuality = formData["webp-quality"]
       let objectWalls = formData["object-walls"]
       let wallsAroundFiles = formData["walls-around-files"]
       let imageFileName = formData["imageFileName"]
@@ -122,7 +122,7 @@ class DDImporter extends FormApplication {
 
       let files = []
       var fileName = 'combined'
-      for (var i = 0; i < filecount; i++) {
+      for (var i = 0; i < this.fileCounter; i++) {
         let fe = this.element.find("[name=file" + i + "]")
         if (fe[0].files[0] === undefined) {
           console.log("SKIPPING")
@@ -136,7 +136,7 @@ class DDImporter extends FormApplication {
             firstFileName = fe[0].files[0].name.split(".")[0]
           }
         } catch (e) {
-          if (filecount > 1) {
+          if (this.fileCounter > 1) {
             ui.notifications.warning("Skipping due to error while importing: " + fe[0].files[0].name + " " + e)
           } else {
             throw (e)
@@ -240,11 +240,10 @@ class DDImporter extends FormApplication {
         await DDImporter.image2Canvas(mycanvas, f, image_type, size.x, size.y)
       }
       ui.notifications.notify("Uploading image ....")
-      if (toWebp) {
+      if (toWebp) 
+      {
         image_type = 'webp';
-      } else {
-		webpQuality = undefined;
-	  }
+      }
 
       var p = new Promise(function (resolve) {
         thecanvas.toBlob(function (blob) {
@@ -254,7 +253,7 @@ class DDImporter extends FormApplication {
                 resolve()
               })
           });
-        }, "image/" + image_type, webpQuality)
+        }, "image/" + image_type, (toWebp ? webpQuality : undefined))
       })
 
 
@@ -326,6 +325,7 @@ class DDImporter extends FormApplication {
         fidelity: fidelity,
         multiImageMode: mode,
         webpConversion: toWebp,
+        webpQuality: webpQuality,
         wallsAroundFiles: wallsAroundFiles,
       });
     }
@@ -343,26 +343,31 @@ class DDImporter extends FormApplication {
     DDImporter.checkSource(html)
     DDImporter.checkWebp(html)
 	
-    this.setRangeValue(html)
 
 
     html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
     html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
     html.find(".source-selector").change(ev => DDImporter.checkSource(html))
-    html.find(".padding-input").change(ev => this.setRangeValue(html))
-	html.find(".convert-to-webp").change(ev => DDImporter.checkWebp(html))
+	  html.find(".convert-to-webp").change(ev => DDImporter.checkWebp(html))
 
+    this.fileCounter=1;
     html.find(".add-file").click(async ev => {
-      var newfile = document.createElement("input");
-      let counter = html.find('[name="filecount"]')[0]
-      newfile.setAttribute("class", "file-input")
-      newfile.setAttribute("type", "file")
-      newfile.setAttribute("accept", ".dd2vtt,.df2vtt,.uvtt")
-      newfile.setAttribute("name", "file" + counter.value)
-      counter.value = parseInt(counter.value) + 1
-      let files = html.find("#dd-upload-files")[0]
-      files.insertBefore(newfile, counter)
-      html.find(".multi-mode-section")[0].style.display = ""
+      var newFile = $(`
+      <div class="file-input" style="width: 80%; display:flex; align-items: center; margin-bottom: 10px;">
+        <input class="file-input" type='file' name='file${this.fileCounter}' accept=".dd2vtt,.df2vtt,.uvtt" /> 
+        <a class="remove-file"><i class="fa-solid fa-xmark"></i></a>
+      </div>`)
+
+      this.fileCounter++;
+      let button = html.find(".add-file")[0]
+      newFile.insertBefore(button)
+      this._checkMultiMode(html)
+    })
+
+    html.on("click", ".remove-file", ev => {
+      ev.currentTarget.parentElement.remove();
+      this.fileCounter--;
+      this._checkMultiMode(html)
     })
 
     html.find(".use-custom-gridPPI").click(async ev => {
@@ -379,9 +384,16 @@ class DDImporter extends FormApplication {
     })
   }
 
-  setRangeValue(html) {
-    let val = html.find(".padding-input").val()
-    html.find(".range-value")[0].textContent = val
+  _checkMultiMode(html)
+  {
+    if (this.fileCounter > 1)
+    {
+      html.find(".multi-mode-section")[0].style.display = ""
+    }
+    else 
+    {
+      html.find(".multi-mode-section")[0].style.display = "none"
+    }
   }
 
   static checkPath(html) {
