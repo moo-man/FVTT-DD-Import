@@ -23,6 +23,7 @@ Hooks.on("init", () => {
       fidelity: 3,
       multiImageMode: "g",
       webpConversion: true,
+	  webpQuality: 0.8,
       wallsAroundFiles: true,
       useCustomPixelsPerGrid: false,
       defaultCustomPixelsPerGrid: 100,
@@ -108,6 +109,7 @@ class DDImporter extends FormApplication {
       let filecount = formData["filecount"]
       let mode = formData["multi-mode"]
       let toWebp = formData["convert-to-webp"]
+	  let webpQuality = formData["webp-quality"]
       let objectWalls = formData["object-walls"]
       let wallsAroundFiles = formData["walls-around-files"]
       let imageFileName = formData["imageFileName"]
@@ -240,7 +242,9 @@ class DDImporter extends FormApplication {
       ui.notifications.notify("Uploading image ....")
       if (toWebp) {
         image_type = 'webp';
-      }
+      } else {
+		webpQuality = undefined;
+	  }
 
       var p = new Promise(function (resolve) {
         thecanvas.toBlob(function (blob) {
@@ -250,7 +254,7 @@ class DDImporter extends FormApplication {
                 resolve()
               })
           });
-        }, "image/" + image_type)
+        }, "image/" + image_type, webpQuality)
       })
 
 
@@ -337,6 +341,8 @@ class DDImporter extends FormApplication {
     DDImporter.checkPath(html)
     DDImporter.checkFidelity(html)
     DDImporter.checkSource(html)
+    DDImporter.checkWebp(html)
+	
     this.setRangeValue(html)
 
 
@@ -344,6 +350,7 @@ class DDImporter extends FormApplication {
     html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
     html.find(".source-selector").change(ev => DDImporter.checkSource(html))
     html.find(".padding-input").change(ev => this.setRangeValue(html))
+	html.find(".convert-to-webp").change(ev => DDImporter.checkWebp(html))
 
     html.find(".add-file").click(async ev => {
       var newfile = document.createElement("input");
@@ -394,6 +401,15 @@ class DDImporter extends FormApplication {
     else
       html.find(".warning.fidelity")[0].style.display = "none"
 
+  }
+  
+  static checkWebp(html) {
+    if (html.find("[name='convert-to-webp']")[0].checked) {
+      html.find(".conversion-quality")[0].style.display = ""
+    }
+    else {
+      html.find(".conversion-quality")[0].style.display = "none"
+	}
   }
 
   static checkSource(html) {
