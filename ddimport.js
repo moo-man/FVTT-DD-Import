@@ -517,7 +517,9 @@ class DDImporter extends FormApplication {
     let newScene = new Scene({
       name: sceneName,
       grid: pixelsPerGrid,
-      img: imagePath,
+      background : {
+        src: imagePath
+      },
       width: pixelsPerGrid * file.resolution.map_size.x,
       height: pixelsPerGrid * file.resolution.map_size.y,
       padding: padding,
