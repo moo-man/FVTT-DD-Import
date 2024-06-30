@@ -516,7 +516,7 @@ class DDImporter extends FormApplication {
     }
     let newScene = new Scene({
       name: sceneName,
-      grid: pixelsPerGrid,
+      grid: {size : pixelsPerGrid},
       background : {
         src: imagePath
       },
@@ -776,19 +776,21 @@ class DDImporter extends FormApplication {
       if (DDImporter.isWithinMap(file, light.position)) {
         try {
           let newLight = new AmbientLightDocument({
-            t: "l",
             x: ((light.position.x - file.resolution.map_origin.x) * pixelsPerGrid) + offsetX,
             y: ((light.position.y - file.resolution.map_origin.y) * pixelsPerGrid) + offsetY,
             rotation: 0,
-            dim: light.range * (game.system.gridDistance || 1),
-            bright: (light.range * (game.system.gridDistance || 1)) / 2,
-          angle: 360,
-          tintColor: "#" + light.color.substring(2),
-          tintAlpha: (0.05 * light.intensity)
-        })
-        lights.push(newLight);
+
+            config: {
+              angle: 360,
+              color: "#" + light.color.substring(2),
+              dim: light.range * (game.system.grid.distance || 1),
+              bright: (light.range * (game.system.grid.distance || 1)) / 2,
+              alpha: (0.05 * light.intensity)
+            }
+          })
+          lights.push(newLight);
         }
-        catch(e)
+        catch (e)
         {
           console.error("Could not create AmbientLight Document: " + e)
         }
