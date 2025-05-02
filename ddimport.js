@@ -1,13 +1,11 @@
-Hooks.on("renderSidebarTab", async (app, html) => {
-  if (app instanceof SceneDirectory) {
-    let button = $("<button class='import-dd'><i class='fas fa-file-import'></i> Universal Battlemap Import</button>")
+  Hooks.on("renderSceneDirectory", async (app, html) => {
+      let button = document.createElement("button");
+      button.innerHTML = "<i class='fas fa-file-import'></i> Universal Battlemap Import";
+      button.addEventListener("click", ev => {
+        new DDImporter().render(true);
+      })
 
-    button.click(function () {
-      new DDImporter().render(true);
-    });
-
-    html.find(".directory-footer").append(button);
-  }
+      html.querySelector(".directory-footer").insertAdjacentElement("beforeend", button)
 })
 
 Hooks.on("init", () => {
@@ -40,81 +38,100 @@ Hooks.on("init", () => {
   })
 })
 
+class DDImporter extends  foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
+
+  static DEFAULT_OPTIONS = {
+    id: "dd-importer",
+    tag: "form",
+    classes : ["standard-form"],
+    window: {
+      title: "Universal Battlemap Importer",
+      resizable : true
+    },
+    position : {
+      width: 500
+    },
+    actions : {
+      removeFile: this._onRemoveFile,
+      usePPI: this._onUsePPI,
+      addFile: this._onAddFile
+    },
+    form: {
+      submitOnChange: false,
+      closeOnSubmit: true,
+      handler : this._onSubmit
+    }
+}
+
+    /** @override */
+    static PARTS = {
+      form: {
+        template: "modules/dd-import/importer.hbs",
+      },
+      footer : {
+        template : "templates/generic/form-footer.hbs"
+    }
+    };
 
 
-
-class DDImporter extends FormApplication {
-
-
-  static get defaultOptions() {
-    const options = super.defaultOptions;
-    options.id = "dd-importer";
-    options.template = "modules/dd-import/importer.html"
-    options.classes.push("dd-importer");
-    options.resizable = false;
-    options.height = "auto";
-    options.width = 400;
-    options.minimizable = true;
-    options.title = "Universal Battlemap Importer"
-    return options;
-  }
-
-
-  async getData() {
-    let data = await super.getData();
+  async _prepareContext() {
+    let context = await super._prepareContext();
     let settings = game.settings.get("dd-import", "importSettings")
 
-    data.dataSources = {
+    context.dataSources = {
       data: "User Data",
       s3: "S3"
     }
-    data.defaultSource = settings.source || "data";
+    context.defaultSource = settings.source || "data";
 
-    data.s3Bucket = settings.bucket || "";
+    context.s3Bucket = settings.bucket || "";
     try {
-      data.bucketOptions = (await FilePicker.browse("s3", "")).dirs;
+      context.bucketOptions = (await FilePicker.browse("s3", "")).dirs.unshift("");
     }
     catch (e)
     {
+      context.bucketOptions = [];
       console.log("No S3 buckets found")
     }
-    data.path = settings.path || "";
-    data.offset = settings.offset || 0;
-    data.padding = settings.padding || 0.25
+    context.path = settings.path || "";
+    context.offset = settings.offset || 0;
+    context.padding = settings.padding || 0.25
 
-    data.multiImageModes = {
+    context.multiImageModes = {
       "g": "Grid",
       "y": "Vertical",
       "x": "Horizontal",
     }
-    data.multiImageMode = settings.multiImageMode || "g";
-    data.webpConversion = settings.webpConversion;
-    data.webpQuality= settings.webpQuality || 0.8;
-    data.wallsAroundFiles = settings.wallsAroundFiles;
+    context.multiImageMode = settings.multiImageMode || "g";
+    context.webpConversion = settings.webpConversion;
+    context.webpQuality= settings.webpQuality || 0.8;
+    context.wallsAroundFiles = settings.wallsAroundFiles;
 
-    data.useCustomPixelsPerGrid = settings.useCustomPixelsPerGrid;
-    data.defaultCustomPixelsPerGrid = settings.defaultCustomPixelsPerGrid || 100;
-    return data
+    context.useCustomPixelsPerGrid = settings.useCustomPixelsPerGrid;
+    context.defaultCustomPixelsPerGrid = settings.defaultCustomPixelsPerGrid || 100;
+
+    context.buttons = [{ type: "submit", label: "Submit", icon: "fa-solid fa-download" }]
+    return context
   }
 
 
-  async _updateObject(event, formData) {
+  static async _onSubmit(event, form, formData) {
     try {
-      let sceneName = formData["sceneName"]
-      let fidelity = parseInt(formData["fidelity"])
-      let offset = parseFloat(formData["offset"])
-      let padding = parseFloat(formData["padding"])
-      let source = formData["source"]
-      let bucket = formData["bucket"]
-      let path = formData["path"]
-      let mode = formData["multi-mode"]
-      let toWebp = formData["convert-to-webp"]
-	    let webpQuality = formData["webp-quality"]
-      let objectWalls = formData["object-walls"]
-      let wallsAroundFiles = formData["walls-around-files"]
-      let imageFileName = formData["imageFileName"]
-      let useCustomPixelsPerGrid = formData["use-custom-gridPPI"]
-      let customPixelsPerGrid = formData["customGridPPI"] * 1
+      let sceneName = formData.object["sceneName"]
+      let fidelity = parseInt(formData.object["fidelity"])
+      let offset = parseFloat(formData.object["offset"])
+      let padding = parseFloat(formData.object["padding"])
+      let source = formData.object["source"]
+      let bucket = formData.object["bucket"]
+      let path = formData.object["path"]
+      let mode = formData.object["multi-mode"]
+      let toWebp = formData.object["convert-to-webp"]
+	    let webpQuality = formData.object["webp-quality"]
+      let objectWalls = formData.object["object-walls"]
+      let wallsAroundFiles = formData.object["walls-around-files"]
+      let imageFileName = formData.object["imageFileName"]
+      let useCustomPixelsPerGrid = formData.object["use-custom-gridPPI"]
+      let customPixelsPerGrid = formData.object["customGridPPI"] * 1
       var firstFileName
 
       if ((!bucket) && source == "s3")
@@ -123,21 +140,21 @@ class DDImporter extends FormApplication {
       let files = []
       var fileName = 'combined'
       for (var i = 0; i < this.fileCounter; i++) {
-        let fe = this.element.find("[name=file" + i + "]")
-        if (fe[0].files[0] === undefined) {
+        let fe = this.element.querySelector("[name=file" + i + "]")
+        if (fe.files[0] === undefined) {
           console.log("SKIPPING")
           continue
         }
         try {
-          files.push(JSON.parse(await fe[0].files[0].text()));
-          fileName = fileName + '-' + fe[0].files[0].name.split(".")[0];
+          files.push(JSON.parse(await fe.files[0].text()));
+          fileName = fileName + '-' + fe.files[0].name.split(".")[0];
           // save the first filename
           if (files.length == 1) {
-            firstFileName = fe[0].files[0].name.split(".")[0]
+            firstFileName = fe.files[0].name.split(".")[0]
           }
         } catch (e) {
           if (this.fileCounter > 1) {
-            ui.notifications.warning("Skipping due to error while importing: " + fe[0].files[0].name + " " + e)
+            ui.notifications.warning("Skipping due to error while importing: " + fe.files[0].name + " " + e)
           } else {
             throw (e)
           }
@@ -335,102 +352,105 @@ class DDImporter extends FormApplication {
   }
 
 
-  activateListeners(html) {
-    super.activateListeners(html)
-
-    DDImporter.checkPath(html)
-    DDImporter.checkFidelity(html)
-    DDImporter.checkSource(html)
-    DDImporter.checkWebp(html)
-	
-
-
-    html.find(".path-input").keyup(ev => DDImporter.checkPath(html))
-    html.find(".fidelity-input").change(ev => DDImporter.checkFidelity(html))
-    html.find(".source-selector").change(ev => DDImporter.checkSource(html))
-	  html.find(".convert-to-webp").change(ev => DDImporter.checkWebp(html))
-
-    this.fileCounter=1;
-    html.find(".add-file").click(async ev => {
-      var newFile = $(`
-      <div class="file-input" style="width: 80%; display:flex; align-items: center; margin-bottom: 10px;">
-        <input class="file-input" type='file' name='file${this.fileCounter}' accept=".dd2vtt,.df2vtt,.uvtt" /> 
-        <a class="remove-file"><i class="fa-solid fa-xmark"></i></a>
-      </div>`)
-
-      this.fileCounter++;
-      let button = html.find(".add-file")[0]
-      newFile.insertBefore(button)
-      this._checkMultiMode(html)
-    })
-
-    html.on("click", ".remove-file", ev => {
-      ev.currentTarget.parentElement.remove();
-      this.fileCounter--;
-      this._checkMultiMode(html)
-    })
-
-    html.find(".use-custom-gridPPI").click(async ev => {
-      if (html.find('[name="use-custom-gridPPI"]')[0].checked) {
-        html.find(".custom-gridPPI-section")[0].style.display = ""
-      } else {
-        html.find(".custom-gridPPI-section")[0].style.display = "none"
-      }
-    })
-
-    html.find(".import-map").click(async ev => {
-
-
-    })
+  static _onRemoveFile(ev, target)
+  {
+    target.parentElement.remove();
+    this.fileCounter--;
+    this._checkMultiMode()
   }
 
-  _checkMultiMode(html)
+  static _onUsePPI(ev, target)
+  {
+    if (this.element.querySelector('[name="use-custom-gridPPI"]').checked) {
+      this.element.querySelector(".custom-gridPPI-section").style.display = ""
+    } else {
+      this.element.querySelector(".custom-gridPPI-section").style.display = "none"
+    }
+  }
+
+  static _onAddFile(ev, target)
+  {
+    let div = document.createElement("div");
+    div.classList.add("file-input");
+    div.style.width = "80%";
+    div.style.display = "flex";
+    div.style.alignItems = "center";
+    div.style.marginBottom = "10px;";
+
+    div.innerHTML = `
+      <input class="file-input" type='file' name='file${this.fileCounter}' accept=".dd2vtt,.df2vtt,.uvtt" /> 
+      <a class="remove-file" data-action="removeFile"><i class="fa-solid fa-xmark"></i></a>
+    `
+
+    this.fileCounter++;
+    let button = this.element.querySelector(".add-file");
+    button.insertAdjacentElement("beforebegin", div)
+    this._checkMultiMode()
+  }
+
+  async _onRender(options) {
+    await super._onRender(options)
+
+    this.checkPath()
+    this.checkFidelity()
+    this.checkSource()
+    this.checkWebp()
+
+    this.element.querySelector("[name='path']").addEventListener("keyup", ev => this.checkPath())
+    this.element.querySelector(".fidelity-input").addEventListener("change", ev => this.checkFidelity())
+    this.element.querySelector(".source-selector").addEventListener("change", ev => this.checkSource())
+	  this.element.querySelector(".convert-to-webp").addEventListener("change", ev => this.checkWebp())
+
+    this.fileCounter=1;
+  }
+
+  _checkMultiMode()
   {
     if (this.fileCounter > 1)
     {
-      html.find(".multi-mode-section")[0].style.display = ""
+      this.element.querySelector(".multi-mode-section").style.display = ""
     }
     else 
     {
-      html.find(".multi-mode-section")[0].style.display = "none"
+      this.element.querySelector(".multi-mode-section").style.display = "none"
     }
   }
 
-  static checkPath(html) {
-    let pathValue = $("[name='path']")[0].value
+  checkPath() {
+    let pathValue = this.element.querySelector("[name='path']").value
     if (pathValue[1] == ":") {
-      html.find(".warning.path")[0].style.display = ""
+      this.element.querySelector(".warning.path").style.display = ""
     }
     else
-      html.find(".warning.path")[0].style.display = "none"
+      this.element.querySelector(".warning.path").style.display = "none"
   }
 
-  static checkFidelity(html) {
-    let fidelityValue = $("[name='fidelity']")[0].value
+  checkFidelity() {
+    let fidelityValue = this.element.querySelector("[name='fidelity']").value
     if (Number(fidelityValue) > 1) {
-      html.find(".warning.fidelity")[0].style.display = ""
+      this.element.querySelector(".warning.fidelity").style.display = ""
     }
     else
-      html.find(".warning.fidelity")[0].style.display = "none"
+      this.element.querySelector(".warning.fidelity").style.display = "none"
 
   }
   
-  static checkWebp(html) {
-    if (html.find("[name='convert-to-webp']")[0].checked) {
-      html.find(".conversion-quality")[0].style.display = ""
+  checkWebp() {
+    if (this.element.querySelector("[name='convert-to-webp']").checked) {
+      this.element.querySelector(".conversion-quality").style.display = ""
     }
     else {
-      html.find(".conversion-quality")[0].style.display = "none"
+      this.element.querySelector(".conversion-quality").style.display = "none"
 	}
   }
 
-  static checkSource(html) {
-    let sourceValue = $("[name='source']")[0].value
+  checkSource() {
+    let sourceValue = this.element.querySelector("[name='source']").value;
     if (sourceValue == "s3") {
-      html.find(".s3-section")[0].style.display = ""
+      this.element.querySelector(".s3-section").style.display = ""
     }
     else {
-      html.find(".s3-section")[0].style.display = "none"
+      this.element.querySelector(".s3-section").style.display = "none"
     }
 
   }
