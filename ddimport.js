@@ -67,6 +67,7 @@ class DDImporter extends  foundry.applications.api.HandlebarsApplicationMixin(fo
     static PARTS = {
       form: {
         template: "modules/dd-import/importer.hbs",
+        scrollable : [""]
       },
       footer : {
         template : "templates/generic/form-footer.hbs"
