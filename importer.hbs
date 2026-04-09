@@ -1,4 +1,36 @@
 <div class="tab" style="display: flex; overflow: auto">
+  <style>
+    #dd-importer .levels {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    #dd-importer .level {
+      display: flex;
+      gap: 1rem;
+      justify-content: space-evenly;
+      align-items: center;
+    }
+
+    #dd-importer .level> :last-of-type {
+      flex: 0 0 1rem;
+      text-align: center;
+    }
+
+
+    #dd-importer .level input {
+      flex: 1;
+    }
+
+    #dd-importer .level input[type=file] {
+      flex: 2;
+    }
+
+    #dd-importer .add-file {
+      text-align: center;
+    }
+  </style>
   <div class="form-group import">
     <label class="import-options">Scene Name</label>
     <div class="form-fields">
@@ -7,38 +39,36 @@
   </div>
   <div class="form-group import" data-tooltip-direction="LEFT" data-tooltip="Select where the image is uploaded.">
     <label class="import-options">Storage Type</label>
-        <div class="form-fields">
+    <div class="form-fields">
 
-    <select name="source" class="source-selector">
+      <select name="source" class="source-selector">
         {{selectOptions dataSources selected=defaultSource}}
-    </select>
+      </select>
     </div>
   </div>
-  <div class="form-group import convert-section convert-to-webp" data-tooltip-direction="LEFT"
-    data-tooltip="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
+  <div class="form-group import convert-section convert-to-webp" data-tooltip-direction="LEFT" data-tooltip="You can save images as webp which will make them a lot smaller, but creation time is a bit longer">
     <label class="import-options">Convert to WebP</label>
-        <div class="form-fields">
+    <div class="form-fields">
 
-    <input type="checkbox" name="convert-to-webp" {{checked webpConversion}}>
+      <input type="checkbox" name="toWebp" {{checked webpConversion}}>
     </div>
   </div>
 
-  <div class="form-group import convert-section" data-tooltip-direction="LEFT"
-    data-tooltip="You can set a custom Grid PPI value at time of import to change the resolution of the generated image">
+  <div class="form-group import convert-section" data-tooltip-direction="LEFT" data-tooltip="You can set a custom Grid PPI value at time of import to change the resolution of the generated image">
     <label class="import-options">Set Custom Grid PPI</label>
-        <div class="form-fields">
+    <div class="form-fields">
 
-    <input type="checkbox" data-action="usePPI"  name="use-custom-gridPPI" {{checked useCustomPixelsPerGrid}}>
+      <input type="checkbox" data-action="usePPI" name="useCustomPixelsPerGrid" {{checked useCustomPixelsPerGrid}}>
     </div>
   </div>
 
   <div class="form-group custom-gridPPI-section" style="display: none">
 
     <div class="form-fields">
-    <range-picker name="customGridPPI" value="{{defaultCustomPixelsPerGrid}}" min="50" max="256" step="1">
-      <input type='range'  min="50" max="256" value="{{defaultCustomPixelsPerGrid}}" step="1"/>
-      <input type="number" min="50" max="256" >
-    </range-picker>
+      <range-picker name="defaultCustomPixelsPerGrid" value="{{defaultCustomPixelsPerGrid}}" min="50" max="256" step="1">
+        <input type='range' min="50" max="256" value="{{defaultCustomPixelsPerGrid}}" step="1" />
+        <input type="number" min="50" max="256">
+      </range-picker>
     </div>
   </div>
 
@@ -58,11 +88,10 @@
   </div>
 
   <div class="form-group import">
-    <label class="import-options" data-tooltip-direction="LEFT"
-      data-tooltip="Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</label>
-          <div class="form-fields">
+    <label class="import-options" data-tooltip-direction="LEFT" data-tooltip="Fidelity decides how many cave walls to skip - Right is high fidelity, no walls skipped">Fidelity</label>
+    <div class="form-fields">
 
-    <input class="fidelity-input" type="range" min="1" max="6" value="1" name="fidelity">
+      <input class="fidelity-input" type="range" min="1" max="6" value="1" name="fidelity">
     </div>
   </div>
 
@@ -70,12 +99,11 @@
     Higher Fidelity creates a very large amount of cave walls. Recommended to stay at the minimum.
   </div>
 
-  <div class="form-group" data-tooltip-direction="LEFT"
-    data-tooltip="Includes the walls from objects that block line of sight">
+  <div class="form-group" data-tooltip-direction="LEFT" data-tooltip="Includes the walls from objects that block line of sight">
     <label class="import-options">Object Walls</label>
-        <div class="form-fields">
+    <div class="form-fields">
 
-    <input type="checkbox" name="object-walls" checked>
+      <input type="checkbox" name="objectWalls" checked>
     </div>
   </div>
 
@@ -83,32 +111,37 @@
     <label class="import-options">Padding</label>
     <div class="form-fields">
 
-    <range-picker name="padding" value="{{padding}}" min="0" max="0.5" step="0.05">
-      <input type='range'  min="0" max="0.5" value="{{defaultCustomPixelsPerGrid}}" step="0.05" />
-      <input type="number" min="0" max="0.5" >
-    </range-picker>
+      <range-picker name="padding" value="{{padding}}" min="0" max="0.5" step="0.05">
+        <input type='range' min="0" max="0.5" value="{{defaultCustomPixelsPerGrid}}" step="0.05" />
+        <input type="number" min="0" max="0.5">
+      </range-picker>
     </div>
   </div>
 
   <div class="form-group import">
-    <label class="import-options">Upload Universal VTT (.dd2vtt, .df2vtt, .uvtt)</label>
+    <label class="import-options">Upload Universal VTT File (.dd2vtt, .df2vtt, .uvtt)</label>
   </div>
-  <div class="form-group import" id="dd-upload-files" style="flex-direction: column" ;>
-    <div class="file-input" style="width: 80%; display:flex; align-items: center; margin-bottom: 10px;">
+
+  <div class="levels">
+    <div class="level">
+      <input type="text" name="levelName0" class="level-name" placeholder="Level Name">
       <input class="file-input" type='file' name='file0' accept=".dd2vtt,.df2vtt,.uvtt" />
+      <div></div>
     </div>
 
-    <a class="add-file" data-action="addFile"><i class="fa-solid fa-plus"></i> Add another file</a>
+    <p class="add-file"><a data-action="addFile"><i class="fa-solid fa-plus"></i> Add another Level</a></p>
+
+
     <fieldset class="multi-mode-section" style="display: none">
       <legend>Multi-File Options</legend>
       <div class="form-group">
         <label class="import-options">Add walls around single files</label>
-        <input type="checkbox" name="walls-around-files" {{checked wallsAroundFiles}}>
+        <input type="checkbox" name="wallsAroundFiles" {{checked wallsAroundFiles}}>
       </div>
       <div class="form-group">
 
         <label class="import-options">Layout Mode</label>
-        <select name="multi-mode">
+        <select name="mode">
           {{selectOptions multiImageModes selected=multiImageMode}}
         </select><br />
       </div>
@@ -116,24 +149,29 @@
         <label class="import-options">Image File Name (also Scene Name if empty)</label>
         <input type='text' name="imageFileName" />
       </div>
+      
+      <div class="info notification" style="display: none">
+        Note: Levels requires all images to be the same size
+      </div>
     </fieldset>
+
+
   </div>
-    <hr />
-    <h3>Advanced</h3>
+
+  <fieldset style="margin-bottom: 1rem;">
+    <legend>Advanced</legend>
     <div class="form-group import conversion-quality">
-      <label class="import-options" data-tooltip-direction="LEFT"
-        data-tooltip="Increase for a better quality image at the cost of increased conversion speed and disk usage">WebP
+      <label class="import-options" data-tooltip-direction="LEFT" data-tooltip="Increase for a better quality image at the cost of increased conversion speed and disk usage">WebP
         Quality</label>
-            <div class="form-fields">
-        <range-picker name="webp-quality" value="{{webpQuality}}" min="0.1" max="1" step="0.1">
-          <input type='range'  value="{{webpQuality}}" min="0.1" max="1" step="0.1"/>
-          <input type="number" min="0.1" max="1" >
+      <div class="form-fields">
+        <range-picker name="webpQuality" value="{{webpQuality}}" min="0.1" max="1" step="0.1">
+          <input type='range' value="{{webpQuality}}" min="0.1" max="1" step="0.1" />
+          <input type="number" min="0.1" max="1">
         </range-picker>
-    </div>
+      </div>
     </div>
     <div class="form-group import">
-      <label class="import-options" data-tooltip-direction="LEFT"
-        data-tooltip="Nudges the walls away from the edge. If you experience issues, leave at 0.">Offset</label>
+      <label class="import-options" data-tooltip-direction="LEFT" data-tooltip="Nudges the walls away from the edge. If you experience issues, leave at 0.">Offset</label>
       <div class="form-fields">
         <div class="form-fields">
           <input type="number" min="-3" step="0.1" max="3" value="{{offset}}" name="offset">
@@ -150,4 +188,5 @@
         </div>
       </div>
     </div>
+  </fieldset>
 </div>
