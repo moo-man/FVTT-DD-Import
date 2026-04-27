@@ -254,9 +254,14 @@ class DDImporter extends  foundry.applications.api.HandlebarsApplicationMixin(fo
     let tempScene = new Scene(foundry.utils.deepClone(scene));
 
     let walls = this.constructor.GetWalls(content, tempScene, 6 - fidelity, offset, scene.grid.size || content.resolution.pixels_per_grid).concat(this.constructor.GetDoors(content, tempScene, offset, scene.grid.size || content.resolution.pixels_per_grid)).map(i => i.toObject());
+    let lights = this.constructor.GetLights(content, tempScene, scene.grid.size || content.resolution.pixels_per_grid).map(i => i.toObject())
 
     walls.forEach(w => {
       w.levels = [id];
+    })
+
+    lights.forEach(l => {
+      l.levels = [id];
     })
 
     let level = {
@@ -269,6 +274,7 @@ class DDImporter extends  foundry.applications.api.HandlebarsApplicationMixin(fo
 
     scene.levels.push(level);
     scene.walls = scene.walls.concat(walls);
+    scene.lights = scene.lights.concat(lights);
   }
 
 
